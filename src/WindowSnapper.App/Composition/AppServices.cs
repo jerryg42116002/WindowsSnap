@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using WindowSnapper.App.Hotkeys;
 using WindowSnapper.App.Logging;
+using WindowSnapper.App.Overlay;
 using WindowSnapper.Core.Monitors;
 using WindowSnapper.Core.Windows;
 using WindowSnapper.Hotkeys;
@@ -14,6 +15,7 @@ namespace WindowSnapper.App.Composition;
 internal sealed class AppServices : IDisposable
 {
     private readonly WpfHotkeyRegistrar hotkeyRegistrar;
+    private readonly OverlayPreviewService overlayPreviewService;
     private LayoutRegistry layoutRegistry;
     private bool disposed;
 
@@ -24,6 +26,7 @@ internal sealed class AppServices : IDisposable
         ArgumentNullException.ThrowIfNull(layoutRegistry);
 
         Logger = new TraceWindowSnapLogger();
+        overlayPreviewService = new OverlayPreviewService(new Win32OverlayWindowStyleService());
         this.layoutRegistry = layoutRegistry;
         WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
 
@@ -69,6 +72,7 @@ internal sealed class AppServices : IDisposable
 
         HotkeyManager.Dispose();
         hotkeyRegistrar.Dispose();
+        overlayPreviewService.Dispose();
         disposed = true;
     }
 
@@ -89,6 +93,8 @@ internal sealed class AppServices : IDisposable
             monitorService,
             new LayoutEngine(),
             Logger,
-            layoutRegistry);
+            layoutRegistry,
+            overlayPreviewService,
+            new OverlayPreviewOptions(settings.ShowOverlayPreview, settings.OverlayOpacity));
     }
 }

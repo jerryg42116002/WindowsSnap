@@ -71,6 +71,7 @@ public sealed record AppSettings
     [
         "Shell_TrayWnd",
         "Progman",
-        "WorkerW"
+        "WorkerW",
+        "WindowSnapperOverlayWindow"
     ];
 }

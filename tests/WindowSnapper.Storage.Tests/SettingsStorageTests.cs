@@ -17,6 +17,8 @@ public sealed class SettingsStorageTests
         Assert.Equal("system", result.Value.Theme);
         Assert.Equal("zh-CN", result.Value.Language);
         Assert.True(result.Value.MinimizeToTray);
+        Assert.Equal(0.35, result.Value.OverlayOpacity);
+        Assert.Contains("WindowSnapperOverlayWindow", result.Value.IgnoredWindowClasses);
     }
 
     [Fact]
@@ -51,8 +53,11 @@ public sealed class SettingsStorageTests
         Assert.True(result.Value.StartWithWindows);
         Assert.False(result.Value.MinimizeToTray);
         Assert.True(result.Value.HotkeysPaused);
+        Assert.Equal(0.5, result.Value.OverlayOpacity);
         Assert.Equal(4, result.Value.DefaultGap);
         Assert.Equal("sample.exe", Assert.Single(result.Value.IgnoredProcesses));
+        Assert.Contains("SampleWindow", result.Value.IgnoredWindowClasses);
+        Assert.Contains("WindowSnapperOverlayWindow", result.Value.IgnoredWindowClasses);
     }
 
     [Fact]
@@ -94,8 +99,10 @@ public sealed class SettingsStorageTests
         Assert.True(result.Value.MinimizeToTray);
         Assert.True(result.Value.ShowOverlayPreview);
         Assert.False(result.Value.HotkeysPaused);
+        Assert.Equal(0.35, result.Value.OverlayOpacity);
         Assert.Equal(8, result.Value.DefaultGap);
         Assert.Contains("Shell_TrayWnd", result.Value.IgnoredWindowClasses);
+        Assert.Contains("WindowSnapperOverlayWindow", result.Value.IgnoredWindowClasses);
     }
 
     [Fact]

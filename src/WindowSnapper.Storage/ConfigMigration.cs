@@ -44,11 +44,11 @@ public sealed class ConfigMigration
             Version = CurrentVersion,
             Theme = UseDefaultWhenBlank(settings.Theme, defaults.Theme),
             Language = UseDefaultWhenBlank(settings.Language, defaults.Language),
-            OverlayOpacity = settings.OverlayOpacity <= 0 ? defaults.OverlayOpacity : settings.OverlayOpacity,
+            OverlayOpacity = settings.OverlayOpacity is <= 0 or > 1 ? defaults.OverlayOpacity : settings.OverlayOpacity,
             DefaultGap = settings.DefaultGap < 0 ? defaults.DefaultGap : settings.DefaultGap,
             DefaultMargin = settings.DefaultMargin < 0 ? defaults.DefaultMargin : settings.DefaultMargin,
             IgnoredProcesses = UseDefaultWhenEmpty(settings.IgnoredProcesses, defaults.IgnoredProcesses),
-            IgnoredWindowClasses = UseDefaultWhenEmpty(settings.IgnoredWindowClasses, defaults.IgnoredWindowClasses)
+            IgnoredWindowClasses = MergeRequiredDefaults(settings.IgnoredWindowClasses, defaults.IgnoredWindowClasses)
         };
     }
 
@@ -60,5 +60,21 @@ public sealed class ConfigMigration
     private static IReadOnlyList<string> UseDefaultWhenEmpty(IReadOnlyList<string>? values, IReadOnlyList<string> defaultValues)
     {
         return values is { Count: > 0 } ? values : defaultValues;
+    }
+
+    private static IReadOnlyList<string> MergeRequiredDefaults(
+        IReadOnlyList<string>? values,
+        IReadOnlyList<string> defaultValues)
+    {
+        var merged = new List<string>(UseDefaultWhenEmpty(values, defaultValues));
+        foreach (var defaultValue in defaultValues)
+        {
+            if (!merged.Contains(defaultValue, StringComparer.Ordinal))
+            {
+                merged.Add(defaultValue);
+            }
+        }
+
+        return merged;
     }
 }

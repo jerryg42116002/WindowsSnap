@@ -17,7 +17,8 @@ public sealed class WindowFilter
         "Progman",
         "WorkerW",
         "DV2ControlHost",
-        "MsgrIMEWindowClass"
+        "MsgrIMEWindowClass",
+        "WindowSnapperOverlayWindow"
     ];
 
     private readonly HashSet<string> ignoredClassNames;

@@ -1,3 +1,4 @@
+using WindowSnapper.Core.Geometry;
 using WindowSnapper.Core.Monitors;
 using WindowSnapper.Core.Results;
 using WindowSnapper.Core.Windows;
@@ -20,6 +21,8 @@ public sealed class WindowSnapService
     private readonly LayoutEngine layoutEngine;
     private readonly LayoutRegistry layoutRegistry;
     private readonly IWindowSnapLogger logger;
+    private readonly IOverlayPreviewService overlayPreviewService;
+    private readonly OverlayPreviewOptions overlayPreviewOptions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WindowSnapService"/> class.
@@ -29,13 +32,17 @@ public sealed class WindowSnapService
         IMonitorManager monitorManager,
         LayoutEngine layoutEngine,
         IWindowSnapLogger? logger = null,
-        LayoutRegistry? layoutRegistry = null)
+        LayoutRegistry? layoutRegistry = null,
+        IOverlayPreviewService? overlayPreviewService = null,
+        OverlayPreviewOptions? overlayPreviewOptions = null)
     {
         this.windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
         this.monitorManager = monitorManager ?? throw new ArgumentNullException(nameof(monitorManager));
         this.layoutEngine = layoutEngine ?? throw new ArgumentNullException(nameof(layoutEngine));
         this.layoutRegistry = layoutRegistry ?? LayoutRegistry.Create(Array.Empty<LayoutDefinition>());
         this.logger = logger ?? NullWindowSnapLogger.Instance;
+        this.overlayPreviewService = overlayPreviewService ?? NullOverlayPreviewService.Instance;
+        this.overlayPreviewOptions = overlayPreviewOptions ?? OverlayPreviewOptions.Disabled;
     }
 
     /// <summary>
@@ -88,6 +95,8 @@ public sealed class WindowSnapService
             return Fail(command, targetRect.ErrorCode, targetRect.ErrorMessage);
         }
 
+        ShowOverlayPreviewIfEnabled(command, monitor.Value, targetRect.Value);
+
         if (windowInfo.Value.IsMaximized)
         {
             var restore = windowManager.RestoreWindow(activeWindow.Value);
@@ -111,5 +120,35 @@ public sealed class WindowSnapService
     {
         logger.SnapFailed(command, errorCode, diagnosticMessage);
         return Result.Failure(errorCode, UserFriendlyMoveFailureMessage);
+    }
+
+    private void ShowOverlayPreviewIfEnabled(SnapCommand command, MonitorInfo monitor, RectInt targetBounds)
+    {
+        if (!overlayPreviewOptions.IsEnabled)
+        {
+            return;
+        }
+
+        try
+        {
+            var preview = overlayPreviewService.ShowPreview(
+                monitor,
+                targetBounds,
+                overlayPreviewOptions.EffectiveOpacity);
+            if (preview.IsFailure)
+            {
+                logger.SnapFailed(
+                    command,
+                    preview.ErrorCode,
+                    preview.ErrorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.SnapFailed(
+                command,
+                ResultErrorCode.Unknown,
+                ex.Message);
+        }
     }
 }

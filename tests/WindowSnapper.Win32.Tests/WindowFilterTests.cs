@@ -14,6 +14,7 @@ public sealed class WindowFilterTests
     [InlineData("WorkerW")]
     [InlineData("DV2ControlHost")]
     [InlineData("MsgrIMEWindowClass")]
+    [InlineData("WindowSnapperOverlayWindow")]
     public void IgnoresRequiredSystemWindowClasses(string className)
     {
         var window = CreateWindow(className: className);

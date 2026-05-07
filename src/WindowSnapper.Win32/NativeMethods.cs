@@ -12,6 +12,10 @@ internal static class NativeMethods
     public const int DwmExtendedFrameBounds = 9;
     public const int MonitorInfoPrimary = 0x00000001;
     public const int WmHotkey = 0x0312;
+    public const int GwlExStyle = -20;
+    public const int WsExTransparent = 0x00000020;
+    public const int WsExToolWindow = 0x00000080;
+    public const int WsExNoActivate = 0x08000000;
 
     [return: MarshalAs(UnmanagedType.Bool)]
     public delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
@@ -100,6 +104,12 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW", SetLastError = true)]
+    public static extern int GetWindowLong(IntPtr hWnd, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongW", SetLastError = true)]
+    public static extern int SetWindowLong(IntPtr hWnd, int index, int value);
 
     [DllImport("dwmapi.dll", PreserveSig = true)]
     public static extern int DwmGetWindowAttribute(

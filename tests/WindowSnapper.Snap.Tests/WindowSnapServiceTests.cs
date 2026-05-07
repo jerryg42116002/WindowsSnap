@@ -66,6 +66,59 @@ public sealed class WindowSnapServiceTests
     }
 
     [Fact]
+    public void SnapActiveWindowDoesNotShowOverlayWhenPreviewIsDisabled()
+    {
+        var overlay = new FakeOverlayPreviewService();
+        var service = new WindowSnapService(
+            new FakeWindowManager(),
+            new FakeMonitorManager(),
+            new LayoutEngine(),
+            overlayPreviewService: overlay,
+            overlayPreviewOptions: OverlayPreviewOptions.Disabled);
+
+        var result = service.SnapActiveWindow(CreateCommand(BuiltinLayouts.LeftHalfId));
+
+        Assert.True(result.IsSuccess);
+        Assert.False(overlay.WasCalled);
+    }
+
+    [Fact]
+    public void SnapActiveWindowPassesTargetRectToOverlayPreview()
+    {
+        var overlay = new FakeOverlayPreviewService();
+        var monitorManager = new FakeMonitorManager
+        {
+            MonitorResult = Result<MonitorInfo>.Success(new MonitorInfo(
+                "primary",
+                "primary",
+                new RectInt(0, 0, 1920, 1080),
+                new RectInt(0, 0, 1920, 1040),
+                true,
+                1.25))
+        };
+        var service = new WindowSnapService(
+            new FakeWindowManager(),
+            monitorManager,
+            new LayoutEngine(),
+            overlayPreviewService: overlay,
+            overlayPreviewOptions: new OverlayPreviewOptions(IsEnabled: true, Opacity: 0.35));
+
+        var result = service.SnapActiveWindow(CreateCommand(BuiltinLayouts.RightHalfId));
+
+        Assert.True(result.IsSuccess);
+        Assert.True(overlay.WasCalled);
+        Assert.Equal(new RectInt(960, 0, 960, 1040), overlay.LastTargetBounds.GetValueOrDefault());
+        Assert.Equal(1.25, overlay.LastMonitor?.DpiScale);
+        Assert.Equal(0.35, overlay.LastOpacity.GetValueOrDefault());
+    }
+
+    [Fact]
+    public void OverlayPreviewOptionsUseDefaultOpacity()
+    {
+        Assert.Equal(0.35, OverlayPreviewOptions.Default.Opacity);
+    }
+
+    [Fact]
     public void SnapActiveWindowRestoresMaximizedWindowBeforeMove()
     {
         var windowManager = new FakeWindowManager
@@ -203,6 +256,26 @@ public sealed class WindowSnapServiceTests
         public Result<MonitorInfo> GetMonitorForPoint(PointInt point)
         {
             return MonitorResult;
+        }
+    }
+
+    private sealed class FakeOverlayPreviewService : IOverlayPreviewService
+    {
+        public bool WasCalled { get; private set; }
+
+        public MonitorInfo? LastMonitor { get; private set; }
+
+        public RectInt? LastTargetBounds { get; private set; }
+
+        public double? LastOpacity { get; private set; }
+
+        public Result ShowPreview(MonitorInfo monitor, RectInt targetBounds, double opacity)
+        {
+            WasCalled = true;
+            LastMonitor = monitor;
+            LastTargetBounds = targetBounds;
+            LastOpacity = opacity;
+            return Result.Success();
         }
     }
 }

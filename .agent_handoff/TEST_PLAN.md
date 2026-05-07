@@ -8,16 +8,17 @@
 
 ## 1. 本次实现摘要
 
-- 任务名称：实现用户自定义布局 JSON 的加载和使用
+- 任务名称：实现窗口移动前 Overlay Preview 预览
 - 实现日期：2026-05-07
-- 相关需求：从 `%APPDATA%/WindowSnapper/layouts/*.json` 加载用户布局；非法布局不崩溃；内置布局和用户布局合并；用户布局不能覆盖内置布局；托盘菜单显示并可使用可用布局。
+- 相关需求：触发快捷键或托盘布局区域后，在目标显示器 WorkArea 上短暂显示半透明矩形；Overlay 不参与布局计算；支持负坐标、多显示器、DPI；可由 `showOverlayPreview` / `overlayOpacity` 配置控制。
 - 实现内容：
-  - `LayoutStorage` 改为批量加载并返回成功布局和非致命问题列表，非法布局被跳过。
-  - 新增 `LayoutRegistry`，纯逻辑合并内置布局和用户布局，处理内置 id 冲突和用户布局重复 id。
-  - `WindowSnapService` 使用 `LayoutRegistry` 查找布局，不再只查内置布局。
-  - App 启动时加载自定义布局，记录非法文件/冲突问题，并用安全文件名提示用户。
-  - 托盘菜单新增“布局”子菜单，显示内置布局和用户布局；选择布局/区域后移动当前活动窗口。
-  - 新增/更新单元测试覆盖 Storage、Layouts registry、Snap 自定义布局使用。
+  - Snap 业务层新增 `IOverlayPreviewService`、`OverlayPreviewOptions`、`NullOverlayPreviewService`。
+  - `WindowSnapService` 在 `LayoutEngine` 计算出目标 Rect 后、Restore/Move 前调用 overlay preview；关闭配置时不调用。
+  - App 层新增 WPF `OverlayWindow` 和 `OverlayPreviewService`。
+  - Win32 层新增 overlay 窗口样式服务，用于设置 `NOACTIVATE` / `TRANSPARENT` / `TOOLWINDOW` 扩展样式；P/Invoke 仍集中在 `NativeMethods`。
+  - `AppServices` 从 `AppSettings.ShowOverlayPreview` / `OverlayOpacity` 创建 preview options 并注入 `WindowSnapService`。
+  - Overlay 内部标记 `WindowSnapperOverlayWindow` 加入默认忽略窗口类和 WindowFilter 默认忽略类。
+  - 测试覆盖 preview 关闭不调用、目标 Rect 传递、默认 opacity、默认忽略类。
 
 ---
 
@@ -25,71 +26,61 @@
 
 | 文件 | 修改类型 | 说明 |
 |---|---|---|
-| `src/WindowSnapper.Storage/LayoutStorage.cs` | 修改 | 批量读取 `*.json`，非法/不可读文件跳过并记录 issue。 |
-| `src/WindowSnapper.Storage/LoadedLayoutDefinition.cs` | 新增 | 记录加载成功的布局和安全文件名。 |
-| `src/WindowSnapper.Storage/LayoutLoadIssue.cs` | 新增 | 记录布局文件加载失败的安全文件名、错误码、消息。 |
-| `src/WindowSnapper.Storage/LayoutLoadResult.cs` | 新增 | 返回成功布局和非致命加载问题。 |
-| `src/WindowSnapper.Layouts/LayoutRegistry.cs` | 新增 | 合并内置布局和用户布局，不访问文件系统。 |
-| `src/WindowSnapper.Layouts/LayoutRegistrationCandidate.cs` | 新增 | 用户布局注册候选模型，携带安全来源名。 |
-| `src/WindowSnapper.Layouts/LayoutRegistryIssue.cs` | 新增 | Registry 非致命问题。 |
-| `src/WindowSnapper.Layouts/LayoutRegistryIssueCode.cs` | 新增 | Registry 问题类别。 |
-| `src/WindowSnapper.Snap/WindowSnapService.cs` | 修改 | 通过 `LayoutRegistry` 查找布局，支持用户布局。 |
-| `src/WindowSnapper.App/Controllers/AppController.cs` | 修改 | 启动加载用户布局；提示非法文件；托盘布局命令触发 snap。 |
-| `src/WindowSnapper.App/Composition/AppServices.cs` | 修改 | 将 `LayoutRegistry` 注入 `WindowSnapService`。 |
-| `src/WindowSnapper.Tray/NotifyIconTrayIcon.cs` | 修改 | 新增“布局”子菜单并分发 layout/zone 命令。 |
-| `src/WindowSnapper.Tray/TrayMenuCommand.cs` | 修改 | 新增 `SnapLayoutZone` 命令。 |
-| `src/WindowSnapper.Tray/TrayMenuCommandEventArgs.cs` | 修改 | 托盘命令事件携带 layout id / zone id。 |
-| `src/WindowSnapper.Tray/TrayMenuState.cs` | 修改 | 托盘状态携带可用布局列表。 |
-| `src/WindowSnapper.Tray/TrayLayoutMenuItem.cs` | 新增 | 托盘布局菜单项模型。 |
-| `src/WindowSnapper.Tray/TrayZoneMenuItem.cs` | 新增 | 托盘区域菜单项模型。 |
-| `tests/WindowSnapper.Storage.Tests/LayoutStorageTests.cs` | 修改 | 覆盖单个/多个合法布局、非法跳过、空目录。 |
-| `tests/WindowSnapper.Layouts.Tests/LayoutRegistryTests.cs` | 新增 | 覆盖内置保留、用户布局追加、内置冲突、重复用户 id。 |
-| `tests/WindowSnapper.Snap.Tests/WindowSnapServiceTests.cs` | 修改 | 覆盖通过 registry 使用自定义布局。 |
+| `src/WindowSnapper.Snap/IOverlayPreviewService.cs` | 新增 | Overlay preview 抽象，避免 Snap 层依赖 WPF。 |
+| `src/WindowSnapper.Snap/OverlayPreviewOptions.cs` | 新增 | Preview 开关和 opacity 选项，默认 opacity 为 `0.35`。 |
+| `src/WindowSnapper.Snap/NullOverlayPreviewService.cs` | 新增 | Preview 禁用或未接入时的 no-op 实现。 |
+| `src/WindowSnapper.Snap/WindowSnapService.cs` | 修改 | 在目标 Rect 计算后、Move 前调用 preview service。 |
+| `src/WindowSnapper.App/Overlay/OverlayWindow.xaml` | 新增 | 半透明 preview 窗口。 |
+| `src/WindowSnapper.App/Overlay/OverlayWindow.xaml.cs` | 新增 | 根据目标 Rect 和 DPI scale 定位 overlay。 |
+| `src/WindowSnapper.App/Overlay/OverlayPreviewService.cs` | 新增 | WPF overlay preview 服务，短暂显示后关闭。 |
+| `src/WindowSnapper.App/Composition/AppServices.cs` | 修改 | 从配置创建 overlay options，注入 preview service。 |
+| `src/WindowSnapper.Win32/NativeMethods.cs` | 修改 | 新增 `GetWindowLong` / `SetWindowLong` 和 overlay 扩展样式常量。 |
+| `src/WindowSnapper.Win32/Win32OverlayWindowStyleService.cs` | 新增 | Win32 overlay 样式封装，不暴露 P/Invoke 给 App。 |
+| `src/WindowSnapper.Win32/WindowFilter.cs` | 修改 | 默认忽略 `WindowSnapperOverlayWindow`。 |
+| `src/WindowSnapper.Storage/AppSettings.cs` | 修改 | 默认忽略窗口类加入 overlay 内部标记。 |
+| `src/WindowSnapper.Storage/ConfigMigration.cs` | 修改 | 合并必要默认忽略类；无效 overlay opacity 恢复默认。 |
+| `tests/WindowSnapper.Snap.Tests/WindowSnapServiceTests.cs` | 修改 | 覆盖 preview 开关、target Rect 传递、默认 opacity。 |
+| `tests/WindowSnapper.Storage.Tests/SettingsStorageTests.cs` | 修改 | 覆盖默认 overlay opacity 和 overlay 忽略类。 |
+| `tests/WindowSnapper.Win32.Tests/WindowFilterTests.cs` | 修改 | 覆盖 overlay class name 被忽略。 |
 
 ---
 
 ## 3. 涉及的类、函数、模块
 
-- `LayoutStorage.LoadLayoutsAsync(...)`
-- `LayoutStorage.LoadLayoutAsync(...)`
-- `LayoutLoadResult`
-- `LayoutLoadIssue`
-- `LoadedLayoutDefinition`
-- `LayoutRegistry.Create(...)`
-- `LayoutRegistry.FindById(...)`
-- `LayoutRegistryIssue`
-- `WindowSnapService.SnapActiveWindow(...)`
-- `AppController.LoadLayoutRegistryAsync()`
-- `AppController.SnapFromTray(...)`
-- `NotifyIconTrayIcon.UpdateState(...)`
-- `TrayMenuState`
-- `TrayLayoutMenuItem`
-- `TrayZoneMenuItem`
+- `WindowSnapService.SnapActiveWindow(SnapCommand)`
+- `WindowSnapService.ShowOverlayPreviewIfEnabled(...)`
+- `IOverlayPreviewService.ShowPreview(...)`
+- `OverlayPreviewOptions`
+- `OverlayPreviewService.ShowPreview(...)`
+- `OverlayWindow.Configure(...)`
+- `Win32OverlayWindowStyleService.ApplyOverlayStyles(...)`
+- `AppServices.CreateWindowSnapService(...)`
+- `AppSettings.ShowOverlayPreview`
+- `AppSettings.OverlayOpacity`
+- `ConfigMigration.Migrate(...)`
+- `WindowFilter`
 
 ---
 
 ## 4. 需要重点测试的功能
 
-- [ ] `LayoutStorage`：
-  - 单个合法布局可读取。
-  - 多个合法布局都可读取且顺序稳定。
-  - 非法布局文件被跳过，合法文件仍返回。
-  - 非法布局 issue 包含安全文件名，例如 `invalid-layout.json`，不包含完整本地路径。
-  - 空 `layouts` 目录返回空用户布局和空 issue。
-- [ ] `LayoutRegistry`：
-  - 空用户布局时仍包含全部内置布局。
-  - 用户布局追加到内置布局之后。
-  - 用户 layout id 与内置 id 冲突时跳过用户布局，不覆盖内置布局。
-  - 重复用户 layout id 时保留第一个，跳过后续重复。
 - [ ] `WindowSnapService`：
-  - 通过自定义 `LayoutRegistry` 能找到并使用用户布局。
-  - 仍支持内置布局。
-- [ ] App/Tray：
-  - 启动时加载 `%APPDATA%/WindowSnapper/layouts/*.json`。
-  - 非法布局文件不导致崩溃，Trace 记录安全文件名。
-  - 托盘菜单“布局”显示内置布局和用户布局。
-  - 单 zone 布局点击布局项即可移动当前窗口。
-  - 多 zone 布局显示 zone 子菜单，点击区域移动当前窗口。
+  - `showOverlayPreview=false` / disabled options 时不调用 overlay service。
+  - enabled options 时把 `LayoutEngine` 算出的目标 `RectInt` 原样传给 overlay service。
+  - preview 调用发生在 Move 前，且 preview 失败不阻止窗口移动。
+  - 默认 opacity 为 `0.35`。
+- [ ] `OverlayWindow` / `OverlayPreviewService`：
+  - 目标 Rect 为负坐标时 `Left` / `Top` 可为负。
+  - `MonitorInfo.DpiScale` 不为 1 时，WPF 坐标按 DPI scale 转换。
+  - 窗口 `ShowActivated=false`、`ShowInTaskbar=false`、`Topmost=true`。
+  - preview 窗口短暂显示后关闭。
+- [ ] Win32：
+  - P/Invoke 只在 `WindowSnapper.Win32/NativeMethods.cs`。
+  - `Win32OverlayWindowStyleService` 应用 `WS_EX_NOACTIVATE`、`WS_EX_TRANSPARENT`、`WS_EX_TOOLWINDOW`。
+- [ ] Storage / WindowFilter：
+  - `overlayOpacity` 缺失时默认 `0.35`。
+  - `WindowSnapperOverlayWindow` 在默认 ignored window classes 中。
+  - `WindowFilter` 忽略 `WindowSnapperOverlayWindow`。
 
 ---
 
@@ -97,19 +88,19 @@
 
 > implement-agent 只填写本节，不运行这些命令。test-agent 根据本节执行验证。
 
-优先运行纯逻辑/Storage 相关测试：
+优先运行纯逻辑测试：
 
 ```bash
-dotnet test tests/WindowSnapper.Storage.Tests/WindowSnapper.Storage.Tests.csproj
-dotnet test tests/WindowSnapper.Layouts.Tests/WindowSnapper.Layouts.Tests.csproj
 dotnet test tests/WindowSnapper.Snap.Tests/WindowSnapper.Snap.Tests.csproj
+dotnet test tests/WindowSnapper.Storage.Tests/WindowSnapper.Storage.Tests.csproj
+dotnet test tests/WindowSnapper.Win32.Tests/WindowSnapper.Win32.Tests.csproj
 ```
 
-再做相关模块回归：
+再做相关回归：
 
 ```bash
+dotnet test tests/WindowSnapper.Layouts.Tests/WindowSnapper.Layouts.Tests.csproj
 dotnet test tests/WindowSnapper.Hotkeys.Tests/WindowSnapper.Hotkeys.Tests.csproj
-dotnet test tests/WindowSnapper.Win32.Tests/WindowSnapper.Win32.Tests.csproj
 ```
 
 最后做整体构建/测试：
@@ -125,30 +116,30 @@ dotnet test WindowSnapper.sln
 
 | 命令/测试 | 原因 |
 |---|---|
-| 自动化真实托盘点击测试 | 依赖 Windows 桌面/Explorer 状态，普通单元测试不稳定。 |
-| 自动化真实窗口移动测试 | 依赖前台窗口、多显示器、DPI 和桌面会话。 |
-| 自动化写入真实 `%APPDATA%/WindowSnapper/layouts` | 会污染用户真实配置；测试应使用临时目录和 `StoragePaths`。 |
-| `dotnet publish src/WindowSnapper.App/WindowSnapper.App.csproj -c Release` | 本轮只实现加载/使用自定义布局，不涉及发布。 |
+| 自动化真实 overlay WPF 截图测试 | 依赖 Windows 桌面会话、DPI 和窗口管理器状态。 |
+| 自动化真实快捷键移动窗口测试 | 依赖前台窗口、多显示器、DPI 和用户桌面状态。 |
+| 自动化管理管理员权限窗口/UAC/全屏游戏 | AGENTS.md 明确不应强制管理这些窗口。 |
+| `dotnet publish src/WindowSnapper.App/WindowSnapper.App.csproj -c Release` | 本轮只实现 preview 功能，不涉及发布。 |
 
 ---
 
 ## 7. 已知风险
 
 - 本轮 implement 未运行 `dotnet restore`、`dotnet build`、`dotnet test`，需要 test-agent 验证编译和测试。
-- 当前自定义布局在 App 启动时加载；运行中直接修改 layouts 目录不会自动刷新。
-- 托盘菜单会显示全部内置布局和用户布局；大量用户布局时菜单可能较长，后续可加分组/搜索。
-- 用户布局 id 与内置布局冲突时明确跳过用户布局；没有设计“覆盖内置布局”的规则。
-- 非法布局提示只显示安全文件名，不显示完整路径；Trace 同样避免完整路径。
+- WPF 坐标使用 `MonitorInfo.DpiScale` 做基础转换；真实多 DPI 场景仍需 Windows 人工验证。
+- Overlay 显示为非激活、透明点击穿透、tool window；实际焦点行为需要 Windows 环境确认。
+- Overlay class name/internal marker 已加入忽略列表；当前进程窗口也会被 `WindowFilter` 忽略，因此 overlay 不应被 WindowSnapper 管理。
 
 ---
 
 ## 8. 需要人工验证的部分
 
-- [ ] 在 Windows 环境创建 `%APPDATA%/WindowSnapper/layouts/dev-layout.json`，启动 App 后托盘“布局”菜单显示该布局。
-- [ ] 选择自定义布局单 zone 项，当前普通窗口移动到对应区域。
-- [ ] 创建多 zone 自定义布局，确认托盘显示区域子菜单并能移动。
-- [ ] 创建非法 JSON 或校验失败布局，确认 App 不崩溃，并提示对应文件名。
-- [ ] 创建与内置 id 冲突的 `left-half` 用户布局，确认内置布局仍可用，用户布局被跳过。
+- [ ] Windows 桌面环境中按 `Ctrl+Alt+Left`，移动前目标区域出现半透明矩形。
+- [ ] 设置 `showOverlayPreview=false` 后不显示 preview，但窗口仍移动。
+- [ ] 修改 `overlayOpacity` 配置后 preview 透明度变化。
+- [ ] 副屏位于主屏左侧、坐标为负时，preview 显示在正确显示器位置。
+- [ ] 不同 DPI 显示器上，preview 与最终移动目标区域尽量一致。
+- [ ] Preview 出现时不抢当前活动窗口焦点，不显示在任务栏。
 
 ---
 
@@ -156,11 +147,10 @@ dotnet test WindowSnapper.sln
 
 - 本轮未运行 `dotnet restore`、`dotnet build`、`dotnet test`、`dotnet publish`。
 - 已执行静态检查：
-  - `rg "LoadLayoutsAsync|LayoutLoadResult|LoadedLayoutDefinition|LayoutLoadIssue" -n src tests`，确认调用点已更新。
-  - `rg "BuiltinLayouts\\.FindById|LayoutRegistry\\.Create\\(\\[\\]|AppServices.Create\\(" -n src tests`，确认旧内置直查路径和 create 调用已处理。
+  - `rg "WindowSnapService\\(|OverlayPreview|IOverlayPreviewService|Win32OverlayWindowStyleService|WindowSnapperOverlayWindow" -n src tests`，确认接入点。
   - `rg "DllImport|LibraryImport" -n src tests`，确认 P/Invoke 仍集中在 Win32 `NativeMethods.cs`。
+  - `rg "NativeMethods|GetWindowLong|SetWindowLong" -n src/WindowSnapper.App ...`，确认 App 不直接调用 `NativeMethods`。
   - `rg "File\\.|Directory\\.|Path\\.|System\\.IO" -n src/WindowSnapper.Layouts src/WindowSnapper.Snap`，确认 Layouts/Snap 不读文件系统。
-  - `rg "LayoutStorage|SettingsStorage|StoragePaths|AppSettings" -n src/WindowSnapper.Tray src/WindowSnapper.Layouts src/WindowSnapper.Snap`，确认 Tray/Layouts/Snap 不直接依赖 Storage。
   - `git diff --check`，未发现空白错误。
 
 ---
