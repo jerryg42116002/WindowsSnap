@@ -999,8 +999,8 @@ implement-agent 的职责：
 2. 完成最小必要代码修改。
 3. 保持项目架构边界。
 4. 不做无关重构。
-5. 可运行轻量检查，但不进行长时间测试循环。
-6. 在结束前更新 `.agent_handoff/TEST_PLAN.md`。
+5. 不运行 `dotnet restore`、`dotnet build`、`dotnet test`、`dotnet publish` 等验证命令。
+6. 在结束前更新 `.agent_handoff/TEST_PLAN.md`，把建议验证命令交给 `test-agent`。
 
 implement-agent 不应：
 
@@ -1009,6 +1009,7 @@ implement-agent 不应：
 3. 删除已有测试。
 4. 隐藏构建错误。
 5. 写虚假的测试状态。
+6. 在 implement 阶段声称已经完成 dotnet 构建或测试验证。
 
 ### 2. test-agent
 
@@ -1038,7 +1039,7 @@ test-agent 不应：
 
 ```text
 $implement-agent
-请实现 XXX 功能。完成后更新 .agent_handoff/TEST_PLAN.md，不要进行长时间测试循环。
+请实现 XXX 功能。完成后只更新 .agent_handoff/TEST_PLAN.md，不要运行 dotnet 验证命令。
 ```
 
 测试阶段：
@@ -1067,3 +1068,9 @@ $test-agent
 7. 已知风险。
 8. 需要人工验证的部分。
 9. test-agent 的测试结果。
+
+注意：
+
+- implement 阶段只负责实现和更新 `.agent_handoff/TEST_PLAN.md`。
+- implement 阶段可以在交接文件中写明推荐的 `dotnet` 验证命令，但不得执行这些命令。
+- `dotnet restore`、`dotnet build`、`dotnet test`、`dotnet publish` 只能由 test 阶段或用户明确要求的验证阶段运行。
