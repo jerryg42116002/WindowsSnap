@@ -33,6 +33,7 @@ public sealed class SettingsStorageTests
               "startWithWindows": true,
               "minimizeToTray": false,
               "showOverlayPreview": false,
+              "hotkeysPaused": true,
               "overlayOpacity": 0.5,
               "defaultGap": 4,
               "defaultMargin": 6,
@@ -49,6 +50,7 @@ public sealed class SettingsStorageTests
         Assert.Equal("en-US", result.Value.Language);
         Assert.True(result.Value.StartWithWindows);
         Assert.False(result.Value.MinimizeToTray);
+        Assert.True(result.Value.HotkeysPaused);
         Assert.Equal(4, result.Value.DefaultGap);
         Assert.Equal("sample.exe", Assert.Single(result.Value.IgnoredProcesses));
     }
@@ -91,6 +93,7 @@ public sealed class SettingsStorageTests
         Assert.Equal("zh-CN", result.Value.Language);
         Assert.True(result.Value.MinimizeToTray);
         Assert.True(result.Value.ShowOverlayPreview);
+        Assert.False(result.Value.HotkeysPaused);
         Assert.Equal(8, result.Value.DefaultGap);
         Assert.Contains("Shell_TrayWnd", result.Value.IgnoredWindowClasses);
     }

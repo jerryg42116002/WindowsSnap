@@ -1,78 +1,40 @@
 using System.Diagnostics;
 using System.Windows;
-using WindowSnapper.App.Composition;
-using WindowSnapper.Hotkeys;
-using WindowSnapper.Snap;
+using WindowSnapper.App.Controllers;
 
 namespace WindowSnapper.App;
 
 public partial class App : Application
 {
-    private AppServices? services;
+    private AppController? controller;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        var mainWindow = new MainWindow();
-        services = AppServices.Create(mainWindow);
-        services.HotkeyManager.HotkeyPressed += OnHotkeyPressed;
-
-        mainWindow.Show();
-
-        var registration = services.HotkeyManager.RegisterDefaultHotkeys();
-        if (registration.IsFailure)
+        try
         {
-            Trace.TraceWarning(
-                "Default hotkey registration failed. ErrorCode={0}; Message={1}",
-                registration.ErrorCode,
-                registration.ErrorMessage);
+            controller = new AppController(this);
+            await controller.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            Trace.TraceError("WindowSnapper startup failed: {0}", ex.Message);
             MessageBox.Show(
-                "部分全局快捷键注册失败。请检查是否与其他程序快捷键冲突。",
+                "WindowSnapper 启动失败，请稍后重试。",
                 "WindowSnapper",
                 MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+                MessageBoxImage.Error);
+            Shutdown();
         }
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        if (services is not null)
-        {
-            services.HotkeyManager.HotkeyPressed -= OnHotkeyPressed;
-            services.Dispose();
-            services = null;
-        }
+        controller?.Dispose();
+        controller = null;
 
         base.OnExit(e);
-    }
-
-    private void OnHotkeyPressed(object? sender, HotkeyPressedEventArgs e)
-    {
-        if (services is null)
-        {
-            return;
-        }
-
-        var command = SnapCommand.FromHotkeyCommand(e.Command);
-        if (command.IsFailure)
-        {
-            Trace.TraceInformation(
-                "Hotkey command ignored. Command={0}; ErrorCode={1}; Message={2}",
-                e.Command,
-                command.ErrorCode,
-                command.ErrorMessage);
-            return;
-        }
-
-        var result = services.WindowSnapService.SnapActiveWindow(command.Value);
-        if (result.IsFailure)
-        {
-            MessageBox.Show(
-                result.ErrorMessage,
-                "WindowSnapper",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
     }
 }

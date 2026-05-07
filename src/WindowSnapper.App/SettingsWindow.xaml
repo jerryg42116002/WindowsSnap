@@ -1,0 +1,77 @@
+<Window x:Class="WindowSnapper.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WindowSnapper 设置"
+        Height="520"
+        Width="520"
+        MinHeight="460"
+        MinWidth="460">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <Grid Margin="20">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <StackPanel>
+        <CheckBox Content="最小化到系统托盘"
+                  IsChecked="{Binding MinimizeToTray, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <CheckBox Margin="0,10,0,0"
+                  Content="显示区域预览"
+                  IsChecked="{Binding ShowOverlayPreview, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <CheckBox Margin="0,10,0,0"
+                  Content="暂停快捷键"
+                  IsChecked="{Binding HotkeysPaused, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+      </StackPanel>
+
+      <Grid Grid.Row="1"
+            Margin="0,22,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel>
+          <TextBlock Text="默认间距" />
+          <TextBox Margin="0,6,0,0"
+                   Text="{Binding DefaultGap, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+        </StackPanel>
+        <StackPanel Grid.Column="2">
+          <TextBlock Text="默认边距" />
+          <TextBox Margin="0,6,0,0"
+                   Text="{Binding DefaultMargin, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+        </StackPanel>
+      </Grid>
+
+      <StackPanel Grid.Row="2"
+                  Margin="0,22,0,0">
+        <TextBlock Text="忽略进程" />
+        <TextBox Margin="0,6,0,0"
+                 MinHeight="84"
+                 AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto"
+                 Text="{Binding IgnoredProcessesText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="3"
+                  Margin="0,22,0,0">
+        <TextBlock Text="忽略窗口类名" />
+        <TextBox Margin="0,6,0,0"
+                 MinHeight="84"
+                 AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto"
+                 Text="{Binding IgnoredWindowClassesText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+      </StackPanel>
+
+      <TextBlock Grid.Row="4"
+                 Margin="0,16,0,0"
+                 Foreground="#B00020"
+                 TextWrapping="Wrap"
+                 Text="{Binding ErrorMessage}" />
+    </Grid>
+  </ScrollViewer>
+</Window>

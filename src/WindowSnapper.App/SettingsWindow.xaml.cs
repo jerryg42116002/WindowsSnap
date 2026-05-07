@@ -3,9 +3,9 @@ using WindowSnapper.App.ViewModels;
 
 namespace WindowSnapper.App;
 
-public partial class MainWindow : Window
+public partial class SettingsWindow : Window
 {
-    public MainWindow(MainWindowViewModel viewModel)
+    public SettingsWindow(SettingsViewModel viewModel)
     {
         InitializeComponent();
         DataContext = viewModel ?? throw new ArgumentNullException(nameof(viewModel));

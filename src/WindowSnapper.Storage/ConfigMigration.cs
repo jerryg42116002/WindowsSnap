@@ -8,7 +8,7 @@ public sealed class ConfigMigration
     /// <summary>
     /// Gets the current settings schema version.
     /// </summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     private readonly DefaultSettingsFactory defaultSettingsFactory;
 

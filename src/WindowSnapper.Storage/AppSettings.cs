@@ -36,6 +36,11 @@ public sealed record AppSettings
     public bool ShowOverlayPreview { get; init; } = true;
 
     /// <summary>
+    /// Gets whether global hotkeys are paused.
+    /// </summary>
+    public bool HotkeysPaused { get; init; }
+
+    /// <summary>
     /// Gets the overlay opacity.
     /// </summary>
     public double OverlayOpacity { get; init; } = 0.35;
