@@ -1074,3 +1074,82 @@ $test-agent
 - implement 阶段只负责实现和更新 `.agent_handoff/TEST_PLAN.md`。
 - implement 阶段可以在交接文件中写明推荐的 `dotnet` 验证命令，但不得执行这些命令。
 - `dotnet restore`、`dotnet build`、`dotnet test`、`dotnet publish` 只能由 test 阶段或用户明确要求的验证阶段运行。
+## Agent Workflow Extensions
+
+This repository supports additional manual skills for planning, review, and context compression.
+
+### plan-agent
+
+Use `plan-agent` before implementation when the task is non-trivial.
+
+Responsibilities:
+
+- Do not write code.
+- Read `AGENTS.md`, relevant source files, and user requirements.
+- Generate `.agent_handoff/IMPLEMENT_PLAN.md`.
+- Define allowed modification scope.
+- Define forbidden modification scope.
+- Define implementation steps.
+- Define acceptance criteria.
+- Define recommended tests.
+- Define manual verification items.
+
+The implementation agent should read `.agent_handoff/IMPLEMENT_PLAN.md` before making changes.
+
+### context-pack-agent
+
+Use `context-pack-agent` when starting a new Codex conversation or when the context has become too large.
+
+Responsibilities:
+
+- Do not write code.
+- Do not run long tests.
+- Generate `.agent_handoff/CONTEXT_PACK.md`.
+- Compress current task context into a short, high-density handoff.
+- Summarize project rules, task goals, relevant files, known pitfalls, commands, and next recommended agent.
+
+The next agent should read `.agent_handoff/CONTEXT_PACK.md` before continuing.
+
+### review-agent
+
+Use `review-agent` after implementation and testing, or before committing.
+
+Responsibilities:
+
+- Prefer review over code modification.
+- Read `AGENTS.md`, handoff files, git diff, and relevant code.
+- Generate `.agent_handoff/REVIEW_REPORT.md`.
+- Check task fit, modification scope, architecture boundaries, testing quality, error handling, privacy, security, maintainability, and documentation consistency.
+- Classify issues as high, medium, or low risk.
+- Provide a recommended fix order.
+
+### Recommended workflow
+
+For non-trivial tasks:
+
+```text
+$plan-agent
+    ↓
+$context-pack-agent
+    ↓
+$implement-agent
+    ↓
+$test-agent
+    ↓
+$review-agent
+```
+For small tasks:
+```text
+$implement-agent
+    ↓
+$test-agent
+    ↓
+$review-agent
+```
+For new conversations:
+
+```text
+$context-pack-agent
+    ↓
+next relevant agent
+```
