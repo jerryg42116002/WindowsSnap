@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowSnapper.Win32", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowSnapper.Hotkeys", "src\WindowSnapper.Hotkeys\WindowSnapper.Hotkeys.csproj", "{66666666-6666-6666-6666-666666666666}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowSnapper.Snap", "src\WindowSnapper.Snap\WindowSnapper.Snap.csproj", "{DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowSnapper.Tray", "src\WindowSnapper.Tray\WindowSnapper.Tray.csproj", "{77777777-7777-7777-7777-777777777777}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowSnapper.Layouts.Tests", "tests\WindowSnapper.Layouts.Tests\WindowSnapper.Layouts.Tests.csproj", "{88888888-8888-8888-8888-888888888888}"
@@ -25,6 +27,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowSnapper.Win32.Tests", "tests\WindowSnapper.Win32.Tests\WindowSnapper.Win32.Tests.csproj", "{BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowSnapper.Hotkeys.Tests", "tests\WindowSnapper.Hotkeys.Tests\WindowSnapper.Hotkeys.Tests.csproj", "{CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowSnapper.Snap.Tests", "tests\WindowSnapper.Snap.Tests\WindowSnapper.Snap.Tests.csproj", "{EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -56,6 +60,10 @@ Global
 		{66666666-6666-6666-6666-666666666666}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{66666666-6666-6666-6666-666666666666}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{66666666-6666-6666-6666-666666666666}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}.Release|Any CPU.Build.0 = Release|Any CPU
 		{77777777-7777-7777-7777-777777777777}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{77777777-7777-7777-7777-777777777777}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77777777-7777-7777-7777-777777777777}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -80,6 +88,10 @@ Global
 		{CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

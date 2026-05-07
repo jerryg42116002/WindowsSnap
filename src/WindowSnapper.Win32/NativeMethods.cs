@@ -11,6 +11,7 @@ internal static class NativeMethods
     public const int SwpNoActivate = 0x0010;
     public const int DwmExtendedFrameBounds = 9;
     public const int MonitorInfoPrimary = 0x00000001;
+    public const int WmHotkey = 0x0312;
 
     [return: MarshalAs(UnmanagedType.Bool)]
     public delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
@@ -91,6 +92,14 @@ internal static class NativeMethods
         IntPtr clipRect,
         MonitorEnumProc enumProc,
         IntPtr data);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     [DllImport("dwmapi.dll", PreserveSig = true)]
     public static extern int DwmGetWindowAttribute(

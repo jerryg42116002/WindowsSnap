@@ -13,6 +13,7 @@
     <ProjectReference Include="..\WindowSnapper.Storage\WindowSnapper.Storage.csproj" />
     <ProjectReference Include="..\WindowSnapper.Win32\WindowSnapper.Win32.csproj" />
     <ProjectReference Include="..\WindowSnapper.Hotkeys\WindowSnapper.Hotkeys.csproj" />
+    <ProjectReference Include="..\WindowSnapper.Snap\WindowSnapper.Snap.csproj" />
     <ProjectReference Include="..\WindowSnapper.Tray\WindowSnapper.Tray.csproj" />
   </ItemGroup>
 </Project>
