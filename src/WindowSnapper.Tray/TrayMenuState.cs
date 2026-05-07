@@ -4,4 +4,7 @@ namespace WindowSnapper.Tray;
 /// Describes the tray menu state.
 /// </summary>
 /// <param name="HotkeysPaused">Whether global hotkeys are paused.</param>
-public sealed record TrayMenuState(bool HotkeysPaused);
+/// <param name="Layouts">The layouts available to snap from the tray.</param>
+public sealed record TrayMenuState(
+    bool HotkeysPaused,
+    IReadOnlyList<TrayLayoutMenuItem>? Layouts = null);

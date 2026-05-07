@@ -8,5 +8,6 @@ public enum TrayMenuCommand
     OpenMainWindow = 1,
     OpenSettings = 2,
     ToggleHotkeysPaused = 3,
-    Exit = 4
+    SnapLayoutZone = 4,
+    Exit = 5
 }

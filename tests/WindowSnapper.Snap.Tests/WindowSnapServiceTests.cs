@@ -43,6 +43,29 @@ public sealed class WindowSnapServiceTests
     }
 
     [Fact]
+    public void SnapActiveWindowCanUseCustomLayoutFromRegistry()
+    {
+        var windowManager = new FakeWindowManager();
+        var customLayout = new LayoutDefinition(
+            "dev-layout",
+            "Dev Layout",
+            1,
+            Gap: 0,
+            Margin: 0,
+            [new ZoneDefinition("code", "Code", 0, 0, 0.6, 1)]);
+        var service = new WindowSnapService(
+            windowManager,
+            new FakeMonitorManager(),
+            new LayoutEngine(),
+            layoutRegistry: LayoutRegistry.Create([customLayout]));
+
+        var result = service.SnapActiveWindow(new SnapCommand("dev-layout", "code"));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new RectInt(0, 0, 1152, 1080), windowManager.LastMoveTarget.GetValueOrDefault());
+    }
+
+    [Fact]
     public void SnapActiveWindowRestoresMaximizedWindowBeforeMove()
     {
         var windowManager = new FakeWindowManager

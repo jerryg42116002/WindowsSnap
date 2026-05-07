@@ -6,6 +6,7 @@ using WindowSnapper.App.Composition;
 using WindowSnapper.App.ViewModels;
 using WindowSnapper.Core.Results;
 using WindowSnapper.Hotkeys;
+using WindowSnapper.Layouts;
 using WindowSnapper.Snap;
 using WindowSnapper.Storage;
 using WindowSnapper.Tray;
@@ -18,9 +19,11 @@ internal sealed class AppController : IDisposable
     private const string SettingsSaveFailureMessage = "设置保存失败，请稍后重试。";
 
     private readonly Application application;
+    private readonly LayoutStorage layoutStorage;
     private readonly SettingsStorage settingsStorage;
     private readonly DefaultSettingsFactory defaultSettingsFactory = new();
     private AppSettings settings;
+    private LayoutRegistry layoutRegistry = LayoutRegistry.Create(Array.Empty<LayoutDefinition>());
     private MainWindow? mainWindow;
     private SettingsWindow? settingsWindow;
     private MainWindowViewModel? mainWindowViewModel;
@@ -33,7 +36,9 @@ internal sealed class AppController : IDisposable
     public AppController(Application application)
     {
         this.application = application ?? throw new ArgumentNullException(nameof(application));
-        settingsStorage = new SettingsStorage(StoragePaths.CreateDefault());
+        var storagePaths = StoragePaths.CreateDefault();
+        settingsStorage = new SettingsStorage(storagePaths);
+        layoutStorage = new LayoutStorage(storagePaths);
         settings = defaultSettingsFactory.Create();
     }
 
@@ -56,16 +61,18 @@ internal sealed class AppController : IDisposable
             ShowWarning("配置加载失败，已使用默认设置。");
         }
 
+        layoutRegistry = await LoadLayoutRegistryAsync();
+
         mainWindowViewModel = CreateMainWindowViewModel();
         mainWindow = new MainWindow(mainWindowViewModel);
         mainWindow.Closing += OnMainWindowClosing;
 
-        services = AppServices.Create(mainWindow, settings);
+        services = AppServices.Create(mainWindow, settings, layoutRegistry);
         services.HotkeyManager.HotkeyPressed += OnHotkeyPressed;
 
         trayIcon = new NotifyIconTrayIcon();
         trayIcon.CommandRequested += OnTrayCommandRequested;
-        trayIcon.Show(new TrayMenuState(settings.HotkeysPaused));
+        trayIcon.Show(CreateTrayMenuState());
 
         if (!settings.HotkeysPaused)
         {
@@ -172,6 +179,9 @@ internal sealed class AppController : IDisposable
                 break;
             case TrayMenuCommand.ToggleHotkeysPaused:
                 RunAsync(ToggleHotkeysPausedAsync);
+                break;
+            case TrayMenuCommand.SnapLayoutZone:
+                SnapFromTray(e.LayoutId, e.ZoneId);
                 break;
             case TrayMenuCommand.Exit:
                 ExitApplication();
@@ -325,6 +335,89 @@ internal sealed class AppController : IDisposable
         }
     }
 
+    private void SnapFromTray(string? layoutId, string? zoneId)
+    {
+        if (services is null || settings.HotkeysPaused)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(layoutId) || string.IsNullOrWhiteSpace(zoneId))
+        {
+            ShowWarning("布局命令无效。");
+            return;
+        }
+
+        var result = services.WindowSnapService.SnapActiveWindow(new SnapCommand(layoutId, zoneId));
+        if (result.IsFailure)
+        {
+            ShowInfo(result.ErrorMessage);
+        }
+    }
+
+    private async Task<LayoutRegistry> LoadLayoutRegistryAsync()
+    {
+        var loadResult = await layoutStorage.LoadLayoutsAsync();
+        if (loadResult.IsFailure)
+        {
+            Trace.TraceWarning(
+                "Custom layouts could not be loaded. ErrorCode={0}; Message={1}",
+                loadResult.ErrorCode,
+                loadResult.ErrorMessage);
+            ShowWarning("自定义布局加载失败，将仅使用内置布局。");
+            return LayoutRegistry.Create(Array.Empty<LayoutDefinition>());
+        }
+
+        foreach (var issue in loadResult.Value.Issues)
+        {
+            Trace.TraceWarning(
+                "Custom layout file failed. File={0}; ErrorCode={1}; Message={2}",
+                issue.FileName,
+                issue.ErrorCode,
+                issue.Message);
+        }
+
+        var registry = LayoutRegistry.Create(loadResult.Value.Layouts.Select(loaded =>
+            new LayoutRegistrationCandidate(loaded.Layout, loaded.FileName)));
+
+        foreach (var issue in registry.Issues)
+        {
+            Trace.TraceWarning(
+                "Custom layout skipped. Source={0}; LayoutId={1}; Code={2}; Message={3}",
+                issue.SourceName ?? issue.LayoutId,
+                issue.LayoutId,
+                issue.Code,
+                issue.Message);
+        }
+
+        ShowLayoutWarnings(loadResult.Value.Issues, registry.Issues);
+        return registry;
+    }
+
+    private void ShowLayoutWarnings(
+        IReadOnlyList<LayoutLoadIssue> loadIssues,
+        IReadOnlyList<LayoutRegistryIssue> registryIssues)
+    {
+        if (loadIssues.Count == 0 && registryIssues.Count == 0)
+        {
+            return;
+        }
+
+        var issueNames = loadIssues
+            .Select(issue => issue.FileName)
+            .Concat(registryIssues.Select(issue => issue.SourceName ?? issue.LayoutId))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(5)
+            .ToArray();
+
+        var suffix = issueNames.Length == 0
+            ? string.Empty
+            : $"{Environment.NewLine}{string.Join(Environment.NewLine, issueNames)}";
+
+        ShowWarning($"部分自定义布局未加载：{suffix}");
+    }
+
     private void UpdateShellState()
     {
         if (mainWindowViewModel is not null)
@@ -336,7 +429,19 @@ internal sealed class AppController : IDisposable
                 : "WindowSnapper 正在运行，快捷键已启用";
         }
 
-        trayIcon?.UpdateState(new TrayMenuState(settings.HotkeysPaused));
+        trayIcon?.UpdateState(CreateTrayMenuState());
+    }
+
+    private TrayMenuState CreateTrayMenuState()
+    {
+        var layouts = layoutRegistry.Layouts
+            .Select(layout => new TrayLayoutMenuItem(
+                layout.Id,
+                layout.Name,
+                layout.Zones.Select(zone => new TrayZoneMenuItem(zone.Id, zone.Name)).ToArray()))
+            .ToArray();
+
+        return new TrayMenuState(settings.HotkeysPaused, layouts);
     }
 
     private static void ShowInfo(string message)

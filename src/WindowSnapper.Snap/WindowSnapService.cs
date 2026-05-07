@@ -18,6 +18,7 @@ public sealed class WindowSnapService
     private readonly IWindowManager windowManager;
     private readonly IMonitorManager monitorManager;
     private readonly LayoutEngine layoutEngine;
+    private readonly LayoutRegistry layoutRegistry;
     private readonly IWindowSnapLogger logger;
 
     /// <summary>
@@ -27,11 +28,13 @@ public sealed class WindowSnapService
         IWindowManager windowManager,
         IMonitorManager monitorManager,
         LayoutEngine layoutEngine,
-        IWindowSnapLogger? logger = null)
+        IWindowSnapLogger? logger = null,
+        LayoutRegistry? layoutRegistry = null)
     {
         this.windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
         this.monitorManager = monitorManager ?? throw new ArgumentNullException(nameof(monitorManager));
         this.layoutEngine = layoutEngine ?? throw new ArgumentNullException(nameof(layoutEngine));
+        this.layoutRegistry = layoutRegistry ?? LayoutRegistry.Create(Array.Empty<LayoutDefinition>());
         this.logger = logger ?? NullWindowSnapLogger.Instance;
     }
 
@@ -73,7 +76,7 @@ public sealed class WindowSnapService
             return Fail(command, monitor.ErrorCode, monitor.ErrorMessage);
         }
 
-        var layout = BuiltinLayouts.FindById(command.LayoutId);
+        var layout = layoutRegistry.FindById(command.LayoutId);
         if (layout is null)
         {
             return Fail(command, ResultErrorCode.NotFound, $"Layout '{command.LayoutId}' was not found.");

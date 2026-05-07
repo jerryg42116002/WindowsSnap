@@ -34,23 +34,43 @@ public sealed class LayoutStorage
     /// <summary>
     /// Loads every custom layout JSON file from the layouts directory.
     /// </summary>
-    public async Task<Result<IReadOnlyList<LayoutDefinition>>> LoadLayoutsAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<LayoutLoadResult>> LoadLayoutsAsync(CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(paths.LayoutsDirectoryPath);
-
-        var layouts = new List<LayoutDefinition>();
-        foreach (var filePath in Directory.EnumerateFiles(paths.LayoutsDirectoryPath, "*.json"))
+        try
         {
-            var result = await LoadLayoutAsync(filePath, cancellationToken).ConfigureAwait(false);
-            if (result.IsFailure)
+            Directory.CreateDirectory(paths.LayoutsDirectoryPath);
+
+            var layouts = new List<LoadedLayoutDefinition>();
+            var issues = new List<LayoutLoadIssue>();
+            foreach (var filePath in Directory
+                .EnumerateFiles(paths.LayoutsDirectoryPath, "*.json")
+                .OrderBy(filePath => filePath, StringComparer.OrdinalIgnoreCase))
             {
-                return Result<IReadOnlyList<LayoutDefinition>>.Failure(result.ErrorCode, result.ErrorMessage);
+                var fileName = Path.GetFileName(filePath);
+                var result = await LoadLayoutAsync(filePath, cancellationToken).ConfigureAwait(false);
+                if (result.IsFailure)
+                {
+                    issues.Add(new LayoutLoadIssue(fileName, result.ErrorCode, result.ErrorMessage));
+                    continue;
+                }
+
+                layouts.Add(new LoadedLayoutDefinition(result.Value, fileName));
             }
 
-            layouts.Add(result.Value);
+            return Result<LayoutLoadResult>.Success(new LayoutLoadResult(layouts, issues));
         }
-
-        return Result<IReadOnlyList<LayoutDefinition>>.Success(layouts);
+        catch (IOException)
+        {
+            return Result<LayoutLoadResult>.Failure(
+                ResultErrorCode.PlatformCallFailed,
+                "Could not enumerate custom layout files.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Result<LayoutLoadResult>.Failure(
+                ResultErrorCode.PermissionDenied,
+                "Could not access the custom layout directory.");
+        }
     }
 
     /// <summary>
@@ -85,11 +105,17 @@ public sealed class LayoutStorage
                 ResultErrorCode.InvalidArgument,
                 $"Layout file '{Path.GetFileName(layoutFilePath)}' contains invalid JSON: {ex.Message}");
         }
-        catch (IOException ex)
+        catch (IOException)
         {
             return Result<LayoutDefinition>.Failure(
                 ResultErrorCode.PlatformCallFailed,
-                $"Could not read layout file '{Path.GetFileName(layoutFilePath)}': {ex.Message}");
+                $"Could not read layout file '{Path.GetFileName(layoutFilePath)}'.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Result<LayoutDefinition>.Failure(
+                ResultErrorCode.PermissionDenied,
+                $"Could not access layout file '{Path.GetFileName(layoutFilePath)}'.");
         }
     }
 

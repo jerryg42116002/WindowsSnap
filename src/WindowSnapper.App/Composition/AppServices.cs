@@ -14,15 +14,18 @@ namespace WindowSnapper.App.Composition;
 internal sealed class AppServices : IDisposable
 {
     private readonly WpfHotkeyRegistrar hotkeyRegistrar;
+    private LayoutRegistry layoutRegistry;
     private bool disposed;
 
-    private AppServices(MainWindow mainWindow, AppSettings settings)
+    private AppServices(MainWindow mainWindow, AppSettings settings, LayoutRegistry layoutRegistry)
     {
         MainWindow = mainWindow ?? throw new ArgumentNullException(nameof(mainWindow));
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(layoutRegistry);
 
         Logger = new TraceWindowSnapLogger();
-        WindowSnapService = CreateWindowSnapService(settings);
+        this.layoutRegistry = layoutRegistry;
+        WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
 
         hotkeyRegistrar = new WpfHotkeyRegistrar(MainWindow, new Win32HotkeyRegistrar());
         HotkeyManager = new HotkeyManager(hotkeyRegistrar);
@@ -36,16 +39,25 @@ internal sealed class AppServices : IDisposable
 
     public TraceWindowSnapLogger Logger { get; }
 
-    public static AppServices Create(MainWindow mainWindow, AppSettings settings)
+    public static AppServices Create(MainWindow mainWindow, AppSettings settings, LayoutRegistry layoutRegistry)
     {
-        return new AppServices(mainWindow, settings);
+        return new AppServices(mainWindow, settings, layoutRegistry);
     }
 
     public void ApplySettings(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        WindowSnapService = CreateWindowSnapService(settings);
+        WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
+    }
+
+    public void ApplyLayouts(LayoutRegistry layoutRegistry, AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(layoutRegistry);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        this.layoutRegistry = layoutRegistry;
+        WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
     }
 
     public void Dispose()
@@ -60,7 +72,7 @@ internal sealed class AppServices : IDisposable
         disposed = true;
     }
 
-    private WindowSnapService CreateWindowSnapService(AppSettings settings)
+    private WindowSnapService CreateWindowSnapService(AppSettings settings, LayoutRegistry layoutRegistry)
     {
         var monitorManager = new Win32MonitorManager();
         using var currentProcess = Process.GetCurrentProcess();
@@ -76,6 +88,7 @@ internal sealed class AppServices : IDisposable
             windowManager,
             monitorService,
             new LayoutEngine(),
-            Logger);
+            Logger,
+            layoutRegistry);
     }
 }
