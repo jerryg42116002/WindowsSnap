@@ -1,0 +1,13 @@
+<Window x:Class="WindowSnapper.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WindowSnapper"
+        Height="240"
+        Width="420">
+  <Grid>
+    <TextBlock Text="WindowSnapper"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               FontSize="24" />
+  </Grid>
+</Window>

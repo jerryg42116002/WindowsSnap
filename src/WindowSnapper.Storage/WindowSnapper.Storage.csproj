@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WindowSnapper.Storage</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WindowSnapper.Core\WindowSnapper.Core.csproj" />
+    <ProjectReference Include="..\WindowSnapper.Layouts\WindowSnapper.Layouts.csproj" />
+  </ItemGroup>
+</Project>
