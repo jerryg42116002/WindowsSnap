@@ -1,17 +1,17 @@
 # TEST_PLAN.md
 
 > 本文件由 implement-agent 更新，由 test-agent 读取。  
-> 目的：把“写代码”和“测试验证”解耦，避免实现阶段和测试阶段互相污染上下文。
+> 目的：把“写代码”和“测试验证”解耦，避免实现阶段和测试阶段互相污染上下文。  
 > implement 阶段不得运行 dotnet 验证命令；只在本文件中记录建议命令和测试范围。
 
 ---
 
 ## 1. 本次实现摘要
 
-- 任务名称：实现 WindowSnapper.Layouts 模块
+- 任务名称：实现 WindowSnapper.Storage 模块
 - 实现日期：2026-05-07
-- 相关需求：实现布局模型、布局计算、布局校验、内置布局和 Layouts 单元测试。
-- 实现内容：新增 LayoutDefinition、ZoneDefinition、ZoneRect、LayoutEngine、LayoutValidator、BuiltinLayouts；补充覆盖 WorkArea、margin、gap、负坐标、竖屏、越界校验和内置布局 id 的测试。
+- 相关需求：实现本地 JSON 配置读写、用户布局 JSON 读取校验、配置迁移和默认配置。
+- 实现内容：新增 `AppSettings`、`SettingsStorage`、`LayoutStorage`、`ConfigMigration`、`DefaultSettingsFactory`、`StoragePaths` 和原子 JSON 写入辅助逻辑；新增 Storage 单元测试覆盖配置创建、读取、损坏恢复、默认字段、版本迁移和布局 JSON 校验。
 
 ---
 
@@ -19,47 +19,48 @@
 
 | 文件 | 修改类型 | 说明 |
 |---|---|---|
-| `src/WindowSnapper.Layouts/LayoutDefinition.cs` | 新增 | 布局定义模型。 |
-| `src/WindowSnapper.Layouts/ZoneDefinition.cs` | 新增 | 归一化区域定义模型。 |
-| `src/WindowSnapper.Layouts/ZoneRect.cs` | 新增 | 计算后的 zone id 与目标 RectInt。 |
-| `src/WindowSnapper.Layouts/LayoutEngine.cs` | 新增 | 基于 MonitorInfo.WorkArea、layout 和 zone id 计算目标 RectInt。 |
-| `src/WindowSnapper.Layouts/LayoutValidator.cs` | 新增 | 校验布局和 zone 坐标规则。 |
-| `src/WindowSnapper.Layouts/LayoutValidationError.cs` | 新增 | 结构化校验错误。 |
-| `src/WindowSnapper.Layouts/LayoutValidationErrorCode.cs` | 新增 | 校验错误枚举，避免内部 magic string。 |
-| `src/WindowSnapper.Layouts/BuiltinLayouts.cs` | 新增 | 提供 MVP 要求的 12 个稳定内置布局 id。 |
-| `tests/WindowSnapper.Layouts.Tests/LayoutEngineTests.cs` | 新增 | 布局计算测试。 |
-| `tests/WindowSnapper.Layouts.Tests/LayoutValidatorTests.cs` | 新增 | 布局校验测试。 |
-| `tests/WindowSnapper.Layouts.Tests/BuiltinLayoutsTests.cs` | 新增 | 内置布局 id 测试。 |
-| `tests/WindowSnapper.Layouts.Tests/LayoutGlobalUsings.cs` | 新增 | 测试项目导入 Layouts 命名空间。 |
+| `src/WindowSnapper.Storage/AppSettings.cs` | 新增 | 全局配置模型，包含默认字段值。 |
+| `src/WindowSnapper.Storage/DefaultSettingsFactory.cs` | 新增 | 创建默认配置。 |
+| `src/WindowSnapper.Storage/ConfigMigration.cs` | 新增 | 配置 version 迁移和默认值补齐。 |
+| `src/WindowSnapper.Storage/SettingsStorage.cs` | 新增 | 读取/创建/保存 `config.json`，损坏时 `.bak` 备份并恢复默认配置。 |
+| `src/WindowSnapper.Storage/LayoutStorage.cs` | 新增 | 读取/保存用户自定义布局 JSON，并调用 `LayoutValidator` 校验。 |
+| `src/WindowSnapper.Storage/StoragePaths.cs` | 新增 | 默认路径和测试可注入路径。 |
+| `src/WindowSnapper.Storage/JsonStorageOptions.cs` | 新增 | Storage JSON 序列化选项。 |
+| `src/WindowSnapper.Storage/AtomicJsonFile.cs` | 新增 | 临时文件写入后替换目标文件。 |
+| `src/WindowSnapper.Storage/StorageAssemblyMarker.cs` | 删除 | 移除占位 marker。 |
+| `tests/WindowSnapper.Storage.Tests/SettingsStorageTests.cs` | 新增 | 配置读写/恢复/迁移测试。 |
+| `tests/WindowSnapper.Storage.Tests/LayoutStorageTests.cs` | 新增 | 布局 JSON 读取和非法布局错误测试。 |
+| `tests/WindowSnapper.Storage.Tests/TemporaryStorage.cs` | 新增 | 测试临时路径辅助。 |
+| `tests/WindowSnapper.Storage.Tests/StorageGlobalUsings.cs` | 新增 | 测试项目导入 Storage 命名空间。 |
+| `tests/WindowSnapper.Storage.Tests/PlaceholderTests.cs` | 删除 | 移除占位测试。 |
 
 ---
 
 ## 3. 涉及的类、函数、模块
 
-- `LayoutDefinition`
-- `ZoneDefinition`
-- `ZoneRect`
-- `LayoutEngine.CalculateTargetRect(MonitorInfo, LayoutDefinition, string)`
-- `LayoutEngine.CalculateZoneRect(MonitorInfo, LayoutDefinition, string)`
-- `LayoutValidator.Validate(LayoutDefinition?)`
-- `LayoutValidator.GetErrors(LayoutDefinition?)`
-- `BuiltinLayouts.All`
-- `BuiltinLayouts.FindById(string)`
+- `AppSettings`
+- `DefaultSettingsFactory.Create()`
+- `ConfigMigration.Migrate(AppSettings?)`
+- `SettingsStorage.LoadOrCreateAsync(...)`
+- `SettingsStorage.SaveAsync(...)`
+- `LayoutStorage.LoadLayoutsAsync(...)`
+- `LayoutStorage.LoadLayoutAsync(...)`
+- `LayoutStorage.SaveLayoutAsync(...)`
+- `StoragePaths.CreateDefault()`
 
 ---
 
 ## 4. 需要重点测试的功能
 
-- [ ] 1920x1080 WorkArea 下 left-half 得到 `RectInt(0, 0, 960, 1080)`。
-- [ ] 1920x1080 WorkArea 下 right-half 得到 `RectInt(960, 0, 960, 1080)`。
-- [ ] `margin=8` 时外边缘正确收缩。
-- [ ] `gap=8` 时左右相邻区域之间间距为 8。
-- [ ] WorkArea 为负坐标时 X 坐标保持负值。
-- [ ] 竖屏 WorkArea 下比例计算正确。
-- [ ] 计算使用 `MonitorInfo.WorkArea`，不使用 `Bounds`。
-- [ ] `x + width > 1` 校验失败并返回 `ZoneRightOutOfRange`。
-- [ ] `y + height > 1` 校验失败并返回 `ZoneBottomOutOfRange`。
-- [ ] 内置布局 id 非空、唯一，并包含 AGENTS.md 要求的 12 个 id。
+- [ ] 配置不存在时创建默认 `%APPDATA%/WindowSnapper/config.json` 等价路径中的默认配置。
+- [ ] 合法配置 JSON 能正常读取用户字段。
+- [ ] 损坏配置 JSON 会备份为 `config.json.bak`，再恢复默认配置。
+- [ ] 缺少新增字段时使用 `AppSettings` 默认值。
+- [ ] 旧 version 配置迁移到 `ConfigMigration.CurrentVersion`。
+- [ ] 保存配置时先写 `.tmp`，再替换目标文件。
+- [ ] 合法用户布局 JSON 读取成功。
+- [ ] 非法用户布局 JSON 返回 `ResultErrorCode.InvalidArgument` 和包含文件名/校验原因的错误信息。
+- [ ] Storage 不依赖 WPF、Win32、网络、遥测或云同步。
 
 ---
 
@@ -68,7 +69,7 @@
 > implement-agent 只填写本节，不运行这些命令。test-agent 根据本节执行验证。
 
 ```bash
-dotnet test tests/WindowSnapper.Layouts.Tests/WindowSnapper.Layouts.Tests.csproj
+dotnet test tests/WindowSnapper.Storage.Tests/WindowSnapper.Storage.Tests.csproj
 ```
 
 必要时扩大到：
@@ -84,23 +85,25 @@ dotnet test WindowSnapper.sln
 
 | 命令/测试 | 原因 |
 |---|---|
-| `dotnet publish src/WindowSnapper.App/WindowSnapper.App.csproj -c Release` | 本次只涉及 Layouts 纯逻辑模块，不需要发布验证。 |
+| `dotnet publish src/WindowSnapper.App/WindowSnapper.App.csproj -c Release` | 本次只涉及 Storage 纯本地文件模块，不需要发布验证。 |
 | 真实 Win32/WPF/托盘行为验证 | 本次未实现 UI、Win32、托盘或真实窗口移动。 |
+| 网络相关验证 | Storage 不应包含网络、遥测或云同步。 |
 
 ---
 
 ## 7. 已知风险
 
-- 本轮 implement 未运行 dotnet 验证命令，可能存在编译问题，需要 test-agent 验证。
-- 现有 Core 模块仍处于未验证状态；Layouts 依赖 `RectInt`、`MonitorInfo`、`Result<T>`。
-- margin/gap 语义已固定为：margin 作用于贴近 WorkArea 外边缘的边，gap 作用于内部边，相邻内部边合计形成完整 gap。
+- 本轮 implement 未运行 dotnet 验证命令，可能存在编译或运行时问题，需要 test-agent 验证。
+- Storage 依赖当前 Core 的 `Result<T>` 和 Layouts 的 `LayoutDefinition` / `LayoutValidator`，这些模块仍需由 test-agent 一并验证。
+- `IReadOnlyList<string>` 和 record 构造模型的 `System.Text.Json` 反序列化行为需要通过测试确认。
+- 原子写入采用同目录 `.tmp` 文件再 `File.Move(..., overwrite: true)` 替换目标文件。
 
 ---
 
 ## 8. 需要人工验证的部分
 
-- [ ] 无需人工验证真实桌面窗口；本轮是纯逻辑模块。
-- [ ] 后续接入窗口移动时确认调用方传入的是目标窗口所在显示器的 `WorkArea`。
+- [ ] 无需人工验证真实桌面窗口；本轮是本地 Storage 模块。
+- [ ] Windows 环境下确认 `StoragePaths.CreateDefault()` 对应 `%APPDATA%/WindowSnapper` 和 `%LOCALAPPDATA%/WindowSnapper`。
 
 ---
 
@@ -108,7 +111,8 @@ dotnet test WindowSnapper.sln
 
 - 本轮未运行 `dotnet restore`、`dotnet build`、`dotnet test`、`dotnet publish`。
 - 仅执行了文档/源码读取和 `rg` 静态搜索检查。
-- 未实现 UI、Win32、文件读写或托盘逻辑。
+- 未实现 UI、Win32、网络、遥测、云同步或日志记录逻辑。
+- 未记录完整窗口标题、浏览器 URL、用户文件路径或用户输入内容。
 
 ---
 
