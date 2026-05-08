@@ -13,6 +13,8 @@ public sealed class NotifyIconTrayIcon : ITrayIcon
     private readonly ToolStripMenuItem openMainWindowItem;
     private readonly ToolStripMenuItem openSettingsItem;
     private readonly ToolStripMenuItem layoutsItem;
+    private readonly ToolStripMenuItem saveWorkspaceSnapshotItem;
+    private readonly ToolStripMenuItem restoreLatestWorkspaceSnapshotItem;
     private readonly ToolStripMenuItem toggleHotkeysItem;
     private readonly ToolStripMenuItem exitItem;
     private bool disposed;
@@ -25,6 +27,8 @@ public sealed class NotifyIconTrayIcon : ITrayIcon
         openMainWindowItem = CreateMenuItem("打开主窗口", TrayMenuCommand.OpenMainWindow);
         openSettingsItem = CreateMenuItem("设置", TrayMenuCommand.OpenSettings);
         layoutsItem = new ToolStripMenuItem("布局");
+        saveWorkspaceSnapshotItem = CreateMenuItem("保存工作区快照", TrayMenuCommand.SaveWorkspaceSnapshot);
+        restoreLatestWorkspaceSnapshotItem = CreateMenuItem("恢复最近工作区快照", TrayMenuCommand.RestoreLatestWorkspaceSnapshot);
         toggleHotkeysItem = CreateMenuItem("暂停快捷键", TrayMenuCommand.ToggleHotkeysPaused);
         exitItem = CreateMenuItem("退出", TrayMenuCommand.Exit);
 
@@ -32,6 +36,9 @@ public sealed class NotifyIconTrayIcon : ITrayIcon
         menu.Items.Add(openMainWindowItem);
         menu.Items.Add(openSettingsItem);
         menu.Items.Add(layoutsItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(saveWorkspaceSnapshotItem);
+        menu.Items.Add(restoreLatestWorkspaceSnapshotItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(toggleHotkeysItem);
         menu.Items.Add(new ToolStripSeparator());

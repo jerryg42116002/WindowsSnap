@@ -9,5 +9,7 @@ public enum TrayMenuCommand
     OpenSettings = 2,
     ToggleHotkeysPaused = 3,
     SnapLayoutZone = 4,
-    Exit = 5
+    SaveWorkspaceSnapshot = 5,
+    RestoreLatestWorkspaceSnapshot = 6,
+    Exit = 7
 }

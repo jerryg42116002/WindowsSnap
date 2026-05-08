@@ -183,6 +183,12 @@ internal sealed class AppController : IDisposable
             case TrayMenuCommand.SnapLayoutZone:
                 SnapFromTray(e.LayoutId, e.ZoneId);
                 break;
+            case TrayMenuCommand.SaveWorkspaceSnapshot:
+                RunAsync(SaveWorkspaceSnapshotAsync);
+                break;
+            case TrayMenuCommand.RestoreLatestWorkspaceSnapshot:
+                RunAsync(RestoreLatestWorkspaceSnapshotAsync);
+                break;
             case TrayMenuCommand.Exit:
                 ExitApplication();
                 break;
@@ -317,20 +323,19 @@ internal sealed class AppController : IDisposable
             return;
         }
 
-        var command = SnapCommand.FromHotkeyCommand(e.Command);
-        if (command.IsFailure)
-        {
-            Trace.TraceInformation(
-                "Hotkey command ignored. Command={0}; ErrorCode={1}; Message={2}",
-                e.Command,
-                command.ErrorCode,
-                command.ErrorMessage);
-            return;
-        }
-
-        var result = services.WindowSnapService.SnapActiveWindow(command.Value);
+        var result = services.WindowSnapService.SnapActiveWindow(e.Command);
         if (result.IsFailure)
         {
+            if (result.ErrorCode == ResultErrorCode.NotSupported)
+            {
+                Trace.TraceInformation(
+                    "Hotkey command ignored. Command={0}; ErrorCode={1}; Message={2}",
+                    e.Command,
+                    result.ErrorCode,
+                    result.ErrorMessage);
+                return;
+            }
+
             ShowInfo(result.ErrorMessage);
         }
     }
@@ -353,6 +358,48 @@ internal sealed class AppController : IDisposable
         {
             ShowInfo(result.ErrorMessage);
         }
+    }
+
+    private async Task SaveWorkspaceSnapshotAsync()
+    {
+        if (services is null)
+        {
+            return;
+        }
+
+        var result = await services.WorkspaceSnapshotService.SaveCurrentAsync();
+        if (result.IsFailure)
+        {
+            Trace.TraceWarning(
+                "Workspace snapshot save failed. ErrorCode={0}; Message={1}",
+                result.ErrorCode,
+                result.ErrorMessage);
+            ShowWarning("工作区快照保存失败，请稍后重试。");
+            return;
+        }
+
+        ShowInfo("已保存工作区快照。");
+    }
+
+    private async Task RestoreLatestWorkspaceSnapshotAsync()
+    {
+        if (services is null)
+        {
+            return;
+        }
+
+        var result = await services.WorkspaceSnapshotService.RestoreLatestAsync();
+        if (result.IsFailure)
+        {
+            Trace.TraceWarning(
+                "Workspace snapshot restore failed. ErrorCode={0}; Message={1}",
+                result.ErrorCode,
+                result.ErrorMessage);
+            ShowWarning("工作区快照恢复失败，请确认已保存快照且相关窗口仍在运行。");
+            return;
+        }
+
+        ShowInfo("已恢复最近工作区快照。");
     }
 
     private async Task<LayoutRegistry> LoadLayoutRegistryAsync()

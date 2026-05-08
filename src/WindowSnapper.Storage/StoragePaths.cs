@@ -5,10 +5,12 @@ namespace WindowSnapper.Storage;
 /// </summary>
 /// <param name="ConfigFilePath">The application settings JSON file path.</param>
 /// <param name="LayoutsDirectoryPath">The custom layouts directory path.</param>
+/// <param name="WorkspacesDirectoryPath">The saved workspace snapshots directory path.</param>
 /// <param name="LogFilePath">The local log file path.</param>
 public sealed record StoragePaths(
     string ConfigFilePath,
     string LayoutsDirectoryPath,
+    string WorkspacesDirectoryPath,
     string LogFilePath)
 {
     /// <summary>
@@ -25,6 +27,7 @@ public sealed record StoragePaths(
         return new StoragePaths(
             Path.Combine(root, "config.json"),
             Path.Combine(root, "layouts"),
+            Path.Combine(root, "workspaces"),
             Path.Combine(localRoot, "logs", "app.log"));
     }
 }

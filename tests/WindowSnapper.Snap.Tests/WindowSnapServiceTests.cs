@@ -150,6 +150,26 @@ public sealed class WindowSnapServiceTests
         Assert.Equal(WindowSnapService.UserFriendlyMoveFailureMessage, result.ErrorMessage);
     }
 
+    [Fact]
+    public void HotkeySnapActiveWindowUsesRepeatCycleTarget()
+    {
+        var clock = new FakeClock();
+        var windowManager = new FakeWindowManager();
+        var service = new WindowSnapService(
+            windowManager,
+            new FakeMonitorManager(),
+            new LayoutEngine(),
+            repeatHotkeyCycleService: new RepeatHotkeyCycleService(clock));
+
+        var first = service.SnapActiveWindow(HotkeyCommand.SnapRightHalf);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        var second = service.SnapActiveWindow(HotkeyCommand.SnapRightHalf);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(new RectInt(1280, 0, 640, 1080), windowManager.LastMoveTarget.GetValueOrDefault());
+    }
+
     private static WindowSnapService CreateService(
         FakeWindowManager? windowManager = null,
         FakeMonitorManager? monitorManager = null)
@@ -276,6 +296,18 @@ public sealed class WindowSnapServiceTests
             LastTargetBounds = targetBounds;
             LastOpacity = opacity;
             return Result.Success();
+        }
+    }
+
+    private sealed class FakeClock : WindowSnapper.Core.Time.IClock
+    {
+        public DateTimeOffset UtcNow { get; private set; } = new(2026, 5, 7, 0, 0, 0, TimeSpan.Zero);
+
+        public DateTimeOffset LocalNow => UtcNow.ToLocalTime();
+
+        public void Advance(TimeSpan elapsed)
+        {
+            UtcNow += elapsed;
         }
     }
 }

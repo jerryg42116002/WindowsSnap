@@ -2,6 +2,7 @@ using WindowSnapper.Core.Geometry;
 using WindowSnapper.Core.Monitors;
 using WindowSnapper.Core.Results;
 using WindowSnapper.Core.Windows;
+using WindowSnapper.Hotkeys;
 using WindowSnapper.Layouts;
 
 namespace WindowSnapper.Snap;
@@ -23,6 +24,7 @@ public sealed class WindowSnapService
     private readonly IWindowSnapLogger logger;
     private readonly IOverlayPreviewService overlayPreviewService;
     private readonly OverlayPreviewOptions overlayPreviewOptions;
+    private readonly RepeatHotkeyCycleService repeatHotkeyCycleService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WindowSnapService"/> class.
@@ -34,7 +36,8 @@ public sealed class WindowSnapService
         IWindowSnapLogger? logger = null,
         LayoutRegistry? layoutRegistry = null,
         IOverlayPreviewService? overlayPreviewService = null,
-        OverlayPreviewOptions? overlayPreviewOptions = null)
+        OverlayPreviewOptions? overlayPreviewOptions = null,
+        RepeatHotkeyCycleService? repeatHotkeyCycleService = null)
     {
         this.windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
         this.monitorManager = monitorManager ?? throw new ArgumentNullException(nameof(monitorManager));
@@ -43,6 +46,38 @@ public sealed class WindowSnapService
         this.logger = logger ?? NullWindowSnapLogger.Instance;
         this.overlayPreviewService = overlayPreviewService ?? NullOverlayPreviewService.Instance;
         this.overlayPreviewOptions = overlayPreviewOptions ?? OverlayPreviewOptions.Disabled;
+        this.repeatHotkeyCycleService = repeatHotkeyCycleService ?? new RepeatHotkeyCycleService();
+    }
+
+    /// <summary>
+    /// Moves the current active window into the snap target selected for a hotkey command.
+    /// </summary>
+    public Result SnapActiveWindow(HotkeyCommand command)
+    {
+        if (command == HotkeyCommand.None)
+        {
+            return Result.Failure(ResultErrorCode.InvalidArgument, "Hotkey command is required.");
+        }
+
+        if (command == HotkeyCommand.OpenLayoutSelector)
+        {
+            return Result.Failure(ResultErrorCode.NotSupported, "The layout selector command does not move a window.");
+        }
+
+        var activeWindow = windowManager.GetActiveWindow();
+        if (activeWindow.IsFailure)
+        {
+            return Result.Failure(activeWindow.ErrorCode, UserFriendlyMoveFailureMessage);
+        }
+
+        var selection = repeatHotkeyCycleService.Select(command, activeWindow.Value);
+        if (selection.IsFailure)
+        {
+            return Result.Failure(selection.ErrorCode, selection.ErrorMessage);
+        }
+
+        logger.SnapStarted(selection.Value.Command);
+        return SnapActiveWindow(selection.Value.Command, activeWindow.Value);
     }
 
     /// <summary>
@@ -60,7 +95,12 @@ public sealed class WindowSnapService
             return Fail(command, activeWindow.ErrorCode, activeWindow.ErrorMessage);
         }
 
-        var windowInfo = windowManager.GetWindowInfo(activeWindow.Value);
+        return SnapActiveWindow(command, activeWindow.Value);
+    }
+
+    private Result SnapActiveWindow(SnapCommand command, WindowHandle activeWindow)
+    {
+        var windowInfo = windowManager.GetWindowInfo(activeWindow);
         if (windowInfo.IsFailure)
         {
             return Fail(command, windowInfo.ErrorCode, windowInfo.ErrorMessage);
@@ -77,7 +117,7 @@ public sealed class WindowSnapService
             return Fail(command, ResultErrorCode.WindowNotManageable, "Window is not manageable by WindowSnapper.");
         }
 
-        var monitor = monitorManager.GetMonitorForWindow(activeWindow.Value);
+        var monitor = monitorManager.GetMonitorForWindow(activeWindow);
         if (monitor.IsFailure)
         {
             return Fail(command, monitor.ErrorCode, monitor.ErrorMessage);
@@ -99,14 +139,14 @@ public sealed class WindowSnapService
 
         if (windowInfo.Value.IsMaximized)
         {
-            var restore = windowManager.RestoreWindow(activeWindow.Value);
+            var restore = windowManager.RestoreWindow(activeWindow);
             if (restore.IsFailure)
             {
                 return Fail(command, restore.ErrorCode, restore.ErrorMessage);
             }
         }
 
-        var move = windowManager.MoveWindow(activeWindow.Value, targetRect.Value);
+        var move = windowManager.MoveWindow(activeWindow, targetRect.Value);
         if (move.IsFailure)
         {
             return Fail(command, move.ErrorCode, move.ErrorMessage);

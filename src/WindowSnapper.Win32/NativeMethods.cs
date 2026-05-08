@@ -20,6 +20,9 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
 
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public delegate bool WindowEnumProc(IntPtr window, IntPtr data);
+
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr GetForegroundWindow();
 
@@ -96,6 +99,10 @@ internal static class NativeMethods
         IntPtr clipRect,
         MonitorEnumProc enumProc,
         IntPtr data);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool EnumWindows(WindowEnumProc enumProc, IntPtr data);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

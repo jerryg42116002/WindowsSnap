@@ -22,6 +22,7 @@ internal sealed class TemporaryStorage : IDisposable
         return new StoragePaths(
             Path.Combine(RootPath, "config.json"),
             Path.Combine(RootPath, "layouts"),
+            Path.Combine(RootPath, "workspaces"),
             Path.Combine(RootPath, "logs", "app.log"));
     }
 

@@ -15,5 +15,6 @@
     <ProjectReference Include="..\WindowSnapper.Hotkeys\WindowSnapper.Hotkeys.csproj" />
     <ProjectReference Include="..\WindowSnapper.Snap\WindowSnapper.Snap.csproj" />
     <ProjectReference Include="..\WindowSnapper.Tray\WindowSnapper.Tray.csproj" />
+    <ProjectReference Include="..\WindowSnapper.Workspaces\WindowSnapper.Workspaces.csproj" />
   </ItemGroup>
 </Project>

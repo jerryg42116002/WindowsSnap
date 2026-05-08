@@ -9,6 +9,7 @@ using WindowSnapper.Layouts;
 using WindowSnapper.Snap;
 using WindowSnapper.Storage;
 using WindowSnapper.Win32;
+using WindowSnapper.Workspaces;
 
 namespace WindowSnapper.App.Composition;
 
@@ -29,6 +30,7 @@ internal sealed class AppServices : IDisposable
         overlayPreviewService = new OverlayPreviewService(new Win32OverlayWindowStyleService());
         this.layoutRegistry = layoutRegistry;
         WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
+        WorkspaceSnapshotService = CreateWorkspaceSnapshotService(settings);
 
         hotkeyRegistrar = new WpfHotkeyRegistrar(MainWindow, new Win32HotkeyRegistrar());
         HotkeyManager = new HotkeyManager(hotkeyRegistrar);
@@ -39,6 +41,8 @@ internal sealed class AppServices : IDisposable
     public HotkeyManager HotkeyManager { get; }
 
     public WindowSnapService WindowSnapService { get; private set; }
+
+    public WorkspaceSnapshotService WorkspaceSnapshotService { get; private set; }
 
     public TraceWindowSnapLogger Logger { get; }
 
@@ -52,6 +56,7 @@ internal sealed class AppServices : IDisposable
         ArgumentNullException.ThrowIfNull(settings);
 
         WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
+        WorkspaceSnapshotService = CreateWorkspaceSnapshotService(settings);
     }
 
     public void ApplyLayouts(LayoutRegistry layoutRegistry, AppSettings settings)
@@ -61,6 +66,7 @@ internal sealed class AppServices : IDisposable
 
         this.layoutRegistry = layoutRegistry;
         WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
+        WorkspaceSnapshotService = CreateWorkspaceSnapshotService(settings);
     }
 
     public void Dispose()
@@ -96,5 +102,25 @@ internal sealed class AppServices : IDisposable
             layoutRegistry,
             overlayPreviewService,
             new OverlayPreviewOptions(settings.ShowOverlayPreview, settings.OverlayOpacity));
+    }
+
+    private static WorkspaceSnapshotService CreateWorkspaceSnapshotService(AppSettings settings)
+    {
+        var monitorManager = new Win32MonitorManager();
+        using var currentProcess = Process.GetCurrentProcess();
+        var windowFilter = new WindowFilter(
+            currentProcess.ProcessName,
+            Environment.ProcessId,
+            settings.IgnoredWindowClasses,
+            settings.IgnoredProcesses);
+        var windowManager = new Win32WindowManager(windowFilter, monitorManager);
+        var windowEnumerator = new Win32WindowEnumerator(windowManager, monitorManager);
+        var snapshotStorage = new WorkspaceSnapshotStorage(StoragePaths.CreateDefault());
+
+        return new WorkspaceSnapshotService(
+            windowEnumerator,
+            windowManager,
+            monitorManager,
+            snapshotStorage);
     }
 }
