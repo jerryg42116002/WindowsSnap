@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using WindowSnapper.Core.Results;
 
 namespace WindowSnapper.Win32;
@@ -59,7 +60,7 @@ public sealed class Win32HotkeyRegistrar
 
         return NativeMethods.RegisterHotKey(windowHandle, id, modifiers, virtualKey)
             ? Result.Success()
-            : Win32ErrorMapper.ToFailure(Environment.GetLastPInvokeError(), nameof(NativeMethods.RegisterHotKey));
+            : Win32ErrorMapper.ToFailure(Marshal.GetLastPInvokeError(), nameof(NativeMethods.RegisterHotKey));
     }
 
     /// <summary>
@@ -79,6 +80,6 @@ public sealed class Win32HotkeyRegistrar
 
         return NativeMethods.UnregisterHotKey(windowHandle, id)
             ? Result.Success()
-            : Win32ErrorMapper.ToFailure(Environment.GetLastPInvokeError(), nameof(NativeMethods.UnregisterHotKey));
+            : Win32ErrorMapper.ToFailure(Marshal.GetLastPInvokeError(), nameof(NativeMethods.UnregisterHotKey));
     }
 }

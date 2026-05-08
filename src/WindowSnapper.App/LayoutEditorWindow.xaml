@@ -1,0 +1,210 @@
+<Window x:Class="WindowSnapper.App.LayoutEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
+        Title="布局编辑器"
+        Height="680"
+        Width="1080"
+        MinHeight="560"
+        MinWidth="900">
+  <Window.Resources>
+    <Style x:Key="ZoneBorderStyle" TargetType="Border">
+      <Setter Property="Background" Value="#3D2F80ED" />
+      <Setter Property="BorderBrush" Value="#2F80ED" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+          <Setter Property="Background" Value="#6634C759" />
+          <Setter Property="BorderBrush" Value="#1B7F37" />
+          <Setter Property="BorderThickness" Value="3" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Window.Resources>
+
+  <Grid Margin="16">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="280" />
+      <ColumnDefinition Width="16" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <ScrollViewer Grid.Column="0"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <TextBlock Text="布局"
+                   FontSize="20"
+                   FontWeight="SemiBold" />
+
+        <TextBlock Margin="0,16,0,4"
+                   Text="布局 id" />
+        <TextBox Text="{Binding LayoutId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+        <TextBlock Margin="0,12,0,4"
+                   Text="名称" />
+        <TextBox Text="{Binding LayoutName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+        <Grid Margin="0,12,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+
+          <StackPanel>
+            <TextBlock Text="间隙" />
+            <TextBox Text="{Binding Gap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="边距" />
+            <TextBox Text="{Binding Margin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+
+        <Separator Margin="0,18,0,14" />
+
+        <TextBlock Text="区域"
+                   FontSize="18"
+                   FontWeight="SemiBold" />
+
+        <StackPanel Orientation="Horizontal"
+                    Margin="0,10,0,8">
+          <Button MinWidth="88"
+                  Padding="10,5"
+                  Content="新增区域"
+                  Command="{Binding AddZoneCommand}" />
+          <Button MinWidth="88"
+                  Margin="8,0,0,0"
+                  Padding="10,5"
+                  Content="删除"
+                  Command="{Binding DeleteSelectedZoneCommand}" />
+        </StackPanel>
+
+        <ListBox Height="150"
+                 ItemsSource="{Binding Zones}"
+                 SelectedItem="{Binding SelectedZone, Mode=OneWay}"
+                 SelectionChanged="OnZoneListSelectionChanged">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock>
+                <Run Text="{Binding Id}" />
+                <Run Text=" - " />
+                <Run Text="{Binding Name}" />
+              </TextBlock>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Margin="0,14,0,0"
+                    IsEnabled="{Binding HasSelectedZone}">
+          <TextBlock Text="选中区域 id" />
+          <TextBox Text="{Binding SelectedZone.Id, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+          <TextBlock Margin="0,10,0,0"
+                     Text="选中区域名称" />
+          <TextBox Text="{Binding SelectedZone.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+          <UniformGrid Columns="2"
+                       Margin="0,12,0,0">
+            <TextBlock Text="{Binding SelectedZone.X, StringFormat=X: {0:F3}}" />
+            <TextBlock Text="{Binding SelectedZone.Y, StringFormat=Y: {0:F3}}" />
+            <TextBlock Text="{Binding SelectedZone.Width, StringFormat=W: {0:F3}}" />
+            <TextBlock Text="{Binding SelectedZone.Height, StringFormat=H: {0:F3}}" />
+          </UniformGrid>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Grid Grid.Column="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <TextBlock Text="拖拽矩形移动区域，拖拽右下角小块缩放区域。"
+                 Foreground="#555555" />
+
+      <Border Grid.Row="1"
+              Margin="0,12,0,12"
+              BorderBrush="#CCCCCC"
+              BorderThickness="1"
+              Background="#F7F7F7"
+              ClipToBounds="True">
+        <ItemsControl x:Name="ZoneCanvas"
+                      ItemsSource="{Binding Zones}"
+                      SizeChanged="OnZoneCanvasSizeChanged">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <Canvas />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemContainerStyle>
+            <Style TargetType="ContentPresenter">
+              <Setter Property="Canvas.Left" Value="{Binding PixelX}" />
+              <Setter Property="Canvas.Top" Value="{Binding PixelY}" />
+            </Style>
+          </ItemsControl.ItemContainerStyle>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid Width="{Binding PixelWidth}"
+                    Height="{Binding PixelHeight}"
+                    MinWidth="12"
+                    MinHeight="12"
+                    MouseLeftButtonDown="OnZoneMouseLeftButtonDown">
+                <Border Style="{StaticResource ZoneBorderStyle}" />
+                <TextBlock Margin="8,6,8,8"
+                           Text="{Binding Name}"
+                           FontWeight="SemiBold"
+                           Foreground="#202020"
+                           TextTrimming="CharacterEllipsis" />
+                <primitives:Thumb Cursor="SizeAll"
+                                  DragDelta="OnMoveThumbDragDelta"
+                                  Background="Transparent" />
+                <primitives:Thumb Width="14"
+                                  Height="14"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Bottom"
+                                  Cursor="SizeNWSE"
+                                  DragDelta="OnResizeThumbDragDelta"
+                                  Background="#1B7F37" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+
+      <StackPanel Grid.Row="2">
+        <TextBlock Text="{Binding StatusMessage}"
+                   Foreground="#555555" />
+        <TextBlock Margin="0,4,0,0"
+                   Text="{Binding ErrorMessage}"
+                   Foreground="#B00020"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+    </Grid>
+
+    <StackPanel Grid.Row="1"
+                Grid.ColumnSpan="3"
+                Margin="0,16,0,0"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right">
+      <Button MinWidth="88"
+              Margin="0,0,8,0"
+              Padding="12,6"
+              Content="取消"
+              Command="{Binding CancelCommand}" />
+      <Button MinWidth="88"
+              Padding="12,6"
+              Content="保存"
+              Command="{Binding SaveCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>

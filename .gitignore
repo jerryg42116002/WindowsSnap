@@ -1,8 +1,51 @@
+# Build output
 bin/
 obj/
+out/
+publish/
+
+# .NET test and coverage output
+TestResults/
+coverage/
+coverage.*
+*.trx
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# IDE and editor state
 .vs/
 .vscode/
-TestResults/
-*.user
+.idea/
 *.suo
-*.nupkg
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider / ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# Windows and filesystem noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs and local runtime data
+*.log
+logs/
+
+# Local agent workflow state
+.agent_handoff/
+.agent_memory/
+.agents/
+.codex/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

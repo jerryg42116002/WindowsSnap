@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using WindowSnapper.Core.Results;
 using WindowSnapper.Core.Windows;
 
@@ -55,7 +56,7 @@ public sealed class Win32WindowEnumerator : IWindowEnumerator
         return succeeded
             ? Result<IReadOnlyList<WindowInfo>>.Success(windows)
             : Win32ErrorMapper.ToFailure<IReadOnlyList<WindowInfo>>(
-                Environment.GetLastPInvokeError(),
+                Marshal.GetLastPInvokeError(),
                 nameof(NativeMethods.EnumWindows));
     }
 }

@@ -39,6 +39,8 @@ internal sealed class MainWindowViewModel : ViewModelBase
 
     public required ICommand OpenSettingsCommand { get; init; }
 
+    public required ICommand OpenLayoutEditorCommand { get; init; }
+
     public required ICommand ToggleHotkeysCommand { get; init; }
 
     public required ICommand ExitCommand { get; init; }

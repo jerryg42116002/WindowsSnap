@@ -62,7 +62,9 @@ internal sealed class WpfHotkeyRegistrar : IHotkeyRegistrar, IDisposable
         var register = nativeRegistrar.RegisterHotkey(windowHandle, id, nativeModifiers.Value, virtualKey.Value);
         if (register.IsFailure)
         {
-            return register;
+            return Result.Failure(
+                register.ErrorCode,
+                $"Failed to register hotkey '{definition.ChordText}' for command '{definition.Command}': {register.ErrorMessage}");
         }
 
         registrationsByChord.Add(definition.ChordText, new Registration(id, definition));

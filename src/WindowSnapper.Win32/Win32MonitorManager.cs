@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using WindowSnapper.Core.Geometry;
 using WindowSnapper.Core.Monitors;
 using WindowSnapper.Core.Results;
@@ -40,7 +41,7 @@ public sealed class Win32MonitorManager : IMonitorManager
         if (!succeeded)
         {
             return Win32ErrorMapper.ToFailure<IReadOnlyList<MonitorInfo>>(
-                Environment.GetLastPInvokeError(),
+                Marshal.GetLastPInvokeError(),
                 nameof(NativeMethods.EnumDisplayMonitors));
         }
 
@@ -60,7 +61,7 @@ public sealed class Win32MonitorManager : IMonitorManager
         if (monitor == IntPtr.Zero)
         {
             return Win32ErrorMapper.ToFailure<MonitorInfo>(
-                Environment.GetLastPInvokeError(),
+                Marshal.GetLastPInvokeError(),
                 nameof(NativeMethods.MonitorFromWindow));
         }
 
@@ -76,7 +77,7 @@ public sealed class Win32MonitorManager : IMonitorManager
         if (monitor == IntPtr.Zero)
         {
             return Win32ErrorMapper.ToFailure<MonitorInfo>(
-                Environment.GetLastPInvokeError(),
+                Marshal.GetLastPInvokeError(),
                 nameof(NativeMethods.MonitorFromPoint));
         }
 
@@ -109,7 +110,7 @@ public sealed class Win32MonitorManager : IMonitorManager
         if (!NativeMethods.GetMonitorInfo(monitor, ref nativeInfo))
         {
             return Win32ErrorMapper.ToFailure<MonitorInfo>(
-                Environment.GetLastPInvokeError(),
+                Marshal.GetLastPInvokeError(),
                 nameof(NativeMethods.GetMonitorInfo));
         }
 

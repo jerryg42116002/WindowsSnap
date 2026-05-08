@@ -88,7 +88,9 @@ public sealed class HotkeyManager : IDisposable
         var result = registrar.Register(definition);
         if (result.IsFailure)
         {
-            return Result.Failure(result.ErrorCode, result.ErrorMessage);
+            return Result.Failure(
+                result.ErrorCode,
+                $"Hotkey '{definition.ChordText}' could not be registered. {result.ErrorMessage}");
         }
 
         registeredHotkeys.Add(chord, definition);

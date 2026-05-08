@@ -61,7 +61,7 @@ public sealed class Win32WindowManager : IWindowManager
         if (!TryGetWindowBounds(nativeHandle, out var bounds))
         {
             return Win32ErrorMapper.ToFailure<WindowInfo>(
-                Environment.GetLastPInvokeError(),
+                Marshal.GetLastPInvokeError(),
                 nameof(NativeMethods.GetWindowRect));
         }
 
@@ -156,7 +156,7 @@ public sealed class Win32WindowManager : IWindowManager
 
         return succeeded
             ? Result.Success()
-            : Win32ErrorMapper.ToFailure(Environment.GetLastPInvokeError(), nameof(NativeMethods.SetWindowPos));
+            : Win32ErrorMapper.ToFailure(Marshal.GetLastPInvokeError(), nameof(NativeMethods.SetWindowPos));
     }
 
     private static bool TryGetWindowBounds(IntPtr window, out RectInt bounds)

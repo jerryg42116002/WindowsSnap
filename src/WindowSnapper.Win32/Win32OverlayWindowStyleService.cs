@@ -20,7 +20,7 @@ public sealed class Win32OverlayWindowStyleService
 
         Marshal.SetLastPInvokeError(0);
         var currentStyle = NativeMethods.GetWindowLong(windowHandle, NativeMethods.GwlExStyle);
-        var getError = Environment.GetLastPInvokeError();
+        var getError = Marshal.GetLastPInvokeError();
         if (currentStyle == 0 && getError != 0)
         {
             return Win32ErrorMapper.ToFailure(getError, nameof(NativeMethods.GetWindowLong));
@@ -33,7 +33,7 @@ public sealed class Win32OverlayWindowStyleService
 
         Marshal.SetLastPInvokeError(0);
         var previousStyle = NativeMethods.SetWindowLong(windowHandle, NativeMethods.GwlExStyle, overlayStyle);
-        var setError = Environment.GetLastPInvokeError();
+        var setError = Marshal.GetLastPInvokeError();
         if (previousStyle == 0 && setError != 0)
         {
             return Win32ErrorMapper.ToFailure(setError, nameof(NativeMethods.SetWindowLong));

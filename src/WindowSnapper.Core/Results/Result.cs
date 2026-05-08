@@ -42,7 +42,11 @@ public sealed record Result
     /// </summary>
     public static Result Failure(ResultErrorCode errorCode, string errorMessage)
     {
-        ArgumentOutOfRangeException.ThrowIfEqual(errorCode, ResultErrorCode.None);
+        if (errorCode == ResultErrorCode.None)
+        {
+            throw new ArgumentOutOfRangeException(nameof(errorCode), errorCode, "Failure results must include an error code.");
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(errorMessage);
 
         return new Result(false, errorCode, errorMessage);

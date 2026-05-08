@@ -15,7 +15,7 @@ namespace WindowSnapper.App.Controllers;
 
 internal sealed class AppController : IDisposable
 {
-    private const string HotkeyRegistrationFailureMessage = "全局快捷键注册失败。请检查是否与其他程序快捷键冲突。";
+    private const string HotkeyRegistrationDiagnosticPrefix = "全局快捷键注册失败。可能与其他程序快捷键冲突。";
     private const string SettingsSaveFailureMessage = "设置保存失败，请稍后重试。";
 
     private readonly Application application;
@@ -26,6 +26,7 @@ internal sealed class AppController : IDisposable
     private LayoutRegistry layoutRegistry = LayoutRegistry.Create(Array.Empty<LayoutDefinition>());
     private MainWindow? mainWindow;
     private SettingsWindow? settingsWindow;
+    private LayoutEditorWindow? layoutEditorWindow;
     private MainWindowViewModel? mainWindowViewModel;
     private SettingsViewModel? settingsViewModel;
     private AppServices? services;
@@ -81,7 +82,7 @@ internal sealed class AppController : IDisposable
             {
                 settings = settings with { HotkeysPaused = true };
                 await SaveSettingsAsync(settings);
-                ShowWarning(HotkeyRegistrationFailureMessage);
+                ShowWarning(CreateHotkeyRegistrationFailureMessage(registration));
             }
         }
 
@@ -140,6 +141,7 @@ internal sealed class AppController : IDisposable
         return new MainWindowViewModel
         {
             OpenSettingsCommand = new RelayCommand(OpenSettingsWindow),
+            OpenLayoutEditorCommand = new RelayCommand(OpenLayoutEditorWindow),
             ToggleHotkeysCommand = new AsyncRelayCommand(ToggleHotkeysPausedAsync),
             ExitCommand = new RelayCommand(ExitApplication)
         };
@@ -227,6 +229,21 @@ internal sealed class AppController : IDisposable
         settingsWindow.Activate();
     }
 
+    private void OpenLayoutEditorWindow()
+    {
+        if (layoutEditorWindow is not null)
+        {
+            layoutEditorWindow.Activate();
+            return;
+        }
+
+        var viewModel = new LayoutEditorViewModel(SaveEditedLayoutAsync);
+        layoutEditorWindow = new LayoutEditorWindow(viewModel);
+        layoutEditorWindow.Closed += (_, _) => layoutEditorWindow = null;
+        layoutEditorWindow.Show();
+        layoutEditorWindow.Activate();
+    }
+
     private async Task ToggleHotkeysPausedAsync()
     {
         var desiredPaused = !settings.HotkeysPaused;
@@ -256,7 +273,7 @@ internal sealed class AppController : IDisposable
                 settings = updatedSettings with { HotkeysPaused = true };
                 _ = services?.HotkeyManager.UnregisterAll();
                 await SaveSettingsAsync(settings);
-                return Result.Failure(hotkeyResult.ErrorCode, HotkeyRegistrationFailureMessage);
+                return Result.Failure(hotkeyResult.ErrorCode, CreateHotkeyRegistrationFailureMessage(hotkeyResult));
             }
         }
 
@@ -402,6 +419,27 @@ internal sealed class AppController : IDisposable
         ShowInfo("已恢复最近工作区快照。");
     }
 
+    private async Task<Result> SaveEditedLayoutAsync(LayoutDefinition layout)
+    {
+        ArgumentNullException.ThrowIfNull(layout);
+
+        var save = await layoutStorage.SaveLayoutAsync(layout);
+        if (save.IsFailure)
+        {
+            Trace.TraceWarning(
+                "Layout editor save failed. LayoutId={0}; ErrorCode={1}; Message={2}",
+                layout.Id,
+                save.ErrorCode,
+                save.ErrorMessage);
+            return Result.Failure(save.ErrorCode, $"布局保存失败：{save.ErrorMessage}");
+        }
+
+        layoutRegistry = await LoadLayoutRegistryAsync();
+        services?.ApplyLayouts(layoutRegistry, settings);
+        UpdateShellState();
+        return Result.Success();
+    }
+
     private async Task<LayoutRegistry> LoadLayoutRegistryAsync()
     {
         var loadResult = await layoutStorage.LoadLayoutsAsync();
@@ -499,6 +537,11 @@ internal sealed class AppController : IDisposable
     private static void ShowWarning(string message)
     {
         MessageBox.Show(message, "WindowSnapper", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
+    private static string CreateHotkeyRegistrationFailureMessage(Result result)
+    {
+        return $"{HotkeyRegistrationDiagnosticPrefix}{Environment.NewLine}{Environment.NewLine}诊断信息：{result.ErrorMessage}";
     }
 
     private static void RunAsync(Func<Task> action)
