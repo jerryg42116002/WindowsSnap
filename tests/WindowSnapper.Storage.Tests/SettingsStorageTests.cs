@@ -100,7 +100,7 @@ public sealed class SettingsStorageTests
         Assert.True(result.Value.ShowOverlayPreview);
         Assert.False(result.Value.HotkeysPaused);
         Assert.Equal(0.35, result.Value.OverlayOpacity);
-        Assert.Equal(8, result.Value.DefaultGap);
+        Assert.Equal(0, result.Value.DefaultGap);
         Assert.Contains("Shell_TrayWnd", result.Value.IgnoredWindowClasses);
         Assert.Contains("WindowSnapperOverlayWindow", result.Value.IgnoredWindowClasses);
     }
@@ -126,5 +126,27 @@ public sealed class SettingsStorageTests
         Assert.Equal(ConfigMigration.CurrentVersion, result.Value.Version);
         Assert.Equal("light", result.Value.Theme);
         Assert.Contains($"\"version\": {ConfigMigration.CurrentVersion}", await File.ReadAllTextAsync(paths.ConfigFilePath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task VersionTwoDefaultSpacingMigratesToTiledDefaults()
+    {
+        using var temp = TemporaryStorage.Create();
+        var paths = temp.CreatePaths();
+        Directory.CreateDirectory(Path.GetDirectoryName(paths.ConfigFilePath)!);
+        await File.WriteAllTextAsync(paths.ConfigFilePath, """
+            {
+              "version": 2,
+              "defaultGap": 8,
+              "defaultMargin": 8
+            }
+            """);
+        var storage = new SettingsStorage(paths);
+
+        var result = await storage.LoadOrCreateAsync();
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, result.Value.DefaultGap);
+        Assert.Equal(0, result.Value.DefaultMargin);
     }
 }

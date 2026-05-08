@@ -77,7 +77,7 @@ public sealed class WindowSnapService
         }
 
         logger.SnapStarted(selection.Value.Command);
-        return SnapActiveWindow(selection.Value.Command, activeWindow.Value);
+        return SnapWindowCore(selection.Value.Command, activeWindow.Value);
     }
 
     /// <summary>
@@ -95,15 +95,140 @@ public sealed class WindowSnapService
             return Fail(command, activeWindow.ErrorCode, activeWindow.ErrorMessage);
         }
 
-        return SnapActiveWindow(command, activeWindow.Value);
+        return SnapWindowCore(command, activeWindow.Value);
     }
 
-    private Result SnapActiveWindow(SnapCommand command, WindowHandle activeWindow)
+    /// <summary>
+    /// Moves the specified window into the requested snap target.
+    /// </summary>
+    public Result SnapWindow(WindowHandle window, SnapCommand command)
     {
-        var windowInfo = windowManager.GetWindowInfo(activeWindow);
+        ArgumentNullException.ThrowIfNull(command);
+
+        if (window.IsNone)
+        {
+            return Result.Failure(ResultErrorCode.InvalidArgument, "Window handle is required.");
+        }
+
+        logger.SnapStarted(command);
+        return SnapWindowCore(command, window);
+    }
+
+    /// <summary>
+    /// Gets the current bounds of the specified window for a later restore operation.
+    /// </summary>
+    public Result<RectInt> GetWindowBounds(WindowHandle window)
+    {
+        var windowInfo = GetWindowInfo(window);
+        return windowInfo.IsSuccess
+            ? Result<RectInt>.Success(windowInfo.Value.Bounds)
+            : Result<RectInt>.Failure(windowInfo.ErrorCode, windowInfo.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Gets current metadata for the specified window.
+    /// </summary>
+    public Result<WindowInfo> GetWindowInfo(WindowHandle window)
+    {
+        if (window.IsNone)
+        {
+            return Result<WindowInfo>.Failure(ResultErrorCode.InvalidArgument, "Window handle is required.");
+        }
+
+        var windowInfo = windowManager.GetWindowInfo(window);
+        return windowInfo.IsSuccess
+            ? Result<WindowInfo>.Success(windowInfo.Value)
+            : Result<WindowInfo>.Failure(windowInfo.ErrorCode, windowInfo.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Restores a window to previously captured bounds.
+    /// </summary>
+    public Result RestoreWindowBounds(WindowHandle window, RectInt bounds)
+    {
+        return RestoreWindowBounds(window, bounds, wasVisible: true, wasMinimized: false);
+    }
+
+    /// <summary>
+    /// Restores a window to previously captured bounds and state.
+    /// </summary>
+    public Result RestoreWindowBounds(
+        WindowHandle window,
+        RectInt bounds,
+        bool wasVisible,
+        bool wasMinimized)
+    {
+        if (window.IsNone)
+        {
+            return Result.Failure(ResultErrorCode.InvalidArgument, "Window handle is required.");
+        }
+
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return Result.Failure(ResultErrorCode.InvalidArgument, "Restore bounds must have positive width and height.");
+        }
+
+        var windowInfo = windowManager.GetWindowInfo(window);
+        if (windowInfo.IsFailure)
+        {
+            return Result.Failure(windowInfo.ErrorCode, UserFriendlyMoveFailureMessage);
+        }
+
+        if (!windowInfo.Value.IsVisible || windowInfo.Value.IsMinimized || windowInfo.Value.IsMaximized)
+        {
+            var restore = windowManager.RestoreWindow(window);
+            if (restore.IsFailure)
+            {
+                return Result.Failure(restore.ErrorCode, UserFriendlyMoveFailureMessage);
+            }
+        }
+
+        var move = windowManager.MoveWindow(window, bounds);
+        if (move.IsFailure)
+        {
+            return Result.Failure(move.ErrorCode, UserFriendlyMoveFailureMessage);
+        }
+
+        if (!wasVisible)
+        {
+            var hide = windowManager.HideWindow(window);
+            return hide.IsSuccess
+                ? Result.Success()
+                : Result.Failure(hide.ErrorCode, UserFriendlyMoveFailureMessage);
+        }
+
+        if (wasMinimized)
+        {
+            var minimize = windowManager.MinimizeWindow(window);
+            return minimize.IsSuccess
+                ? Result.Success()
+                : Result.Failure(minimize.ErrorCode, UserFriendlyMoveFailureMessage);
+        }
+
+        return Result.Success();
+    }
+
+    private Result SnapWindowCore(SnapCommand command, WindowHandle window)
+    {
+        var windowInfo = windowManager.GetWindowInfo(window);
         if (windowInfo.IsFailure)
         {
             return Fail(command, windowInfo.ErrorCode, windowInfo.ErrorMessage);
+        }
+
+        if (!windowInfo.Value.IsVisible || windowInfo.Value.IsMinimized)
+        {
+            var restore = windowManager.RestoreWindow(window);
+            if (restore.IsFailure)
+            {
+                return Fail(command, restore.ErrorCode, restore.ErrorMessage);
+            }
+
+            windowInfo = windowManager.GetWindowInfo(window);
+            if (windowInfo.IsFailure)
+            {
+                return Fail(command, windowInfo.ErrorCode, windowInfo.ErrorMessage);
+            }
         }
 
         var manageable = windowManager.IsWindowManageable(windowInfo.Value);
@@ -117,7 +242,7 @@ public sealed class WindowSnapService
             return Fail(command, ResultErrorCode.WindowNotManageable, "Window is not manageable by WindowSnapper.");
         }
 
-        var monitor = monitorManager.GetMonitorForWindow(activeWindow);
+        var monitor = monitorManager.GetMonitorForWindow(window);
         if (monitor.IsFailure)
         {
             return Fail(command, monitor.ErrorCode, monitor.ErrorMessage);
@@ -139,14 +264,14 @@ public sealed class WindowSnapService
 
         if (windowInfo.Value.IsMaximized)
         {
-            var restore = windowManager.RestoreWindow(activeWindow);
+            var restore = windowManager.RestoreWindow(window);
             if (restore.IsFailure)
             {
                 return Fail(command, restore.ErrorCode, restore.ErrorMessage);
             }
         }
 
-        var move = windowManager.MoveWindow(activeWindow, targetRect.Value);
+        var move = windowManager.MoveWindow(window, targetRect.Value);
         if (move.IsFailure)
         {
             return Fail(command, move.ErrorCode, move.ErrorMessage);

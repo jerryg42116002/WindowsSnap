@@ -124,6 +124,33 @@ public sealed class WorkspaceSnapshotServiceTests
         Assert.Equal(new RectInt(0, 0, 960, 1080), windowManager.MovedWindows[window.Handle]);
     }
 
+    [Fact]
+    public async Task RestoreLatestAsyncRestoresMinimizedSnapshotStateAfterMove()
+    {
+        var monitor = CreateMonitor(new RectInt(0, 0, 1920, 1080));
+        var window = CreateWindow(10, "ignored", "editor.exe", "EditorWindow", new RectInt(0, 0, 800, 600));
+        var snapshot = CreateSnapshot(
+            new WorkspaceWindowSnapshot(
+                "editor.exe",
+                "EditorWindow",
+                @"\\.\DISPLAY1",
+                new RelativeRect(0, 0, 0.5, 1),
+                WorkspaceWindowState.Minimized));
+        var windowManager = new FakeWindowManager();
+        var service = CreateService(
+            new[] { window },
+            new[] { monitor },
+            windowManager,
+            new FakeWorkspaceSnapshotStore { SnapshotToLoad = snapshot });
+
+        var result = await service.RestoreLatestAsync();
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new WorkspaceRestoreResult(1, 0, 0), result.Value);
+        Assert.Equal(new RectInt(0, 0, 960, 1080), windowManager.MovedWindows[window.Handle]);
+        Assert.Contains(window.Handle, windowManager.MinimizedWindows);
+    }
+
     private static WorkspaceSnapshotService CreateService(
         IReadOnlyList<WindowInfo> windows,
         IReadOnlyList<MonitorInfo> monitors,
@@ -187,6 +214,8 @@ public sealed class WorkspaceSnapshotServiceTests
 
         public List<WindowHandle> RestoredWindows { get; } = new();
 
+        public List<WindowHandle> MinimizedWindows { get; } = new();
+
         public Result<WindowHandle> GetActiveWindow()
         {
             return Result<WindowHandle>.Success(new WindowHandle(1));
@@ -207,6 +236,17 @@ public sealed class WorkspaceSnapshotServiceTests
         public Result RestoreWindow(WindowHandle handle)
         {
             RestoredWindows.Add(handle);
+            return Result.Success();
+        }
+
+        public Result MinimizeWindow(WindowHandle handle)
+        {
+            MinimizedWindows.Add(handle);
+            return Result.Success();
+        }
+
+        public Result HideWindow(WindowHandle handle)
+        {
             return Result.Success();
         }
 

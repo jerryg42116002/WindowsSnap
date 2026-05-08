@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WindowSnapper.App\WindowSnapper.App.csproj" />
+    <ProjectReference Include="..\..\src\WindowSnapper.Core\WindowSnapper.Core.csproj" />
     <ProjectReference Include="..\..\src\WindowSnapper.Layouts\WindowSnapper.Layouts.csproj" />
+    <ProjectReference Include="..\..\src\WindowSnapper.Snap\WindowSnapper.Snap.csproj" />
   </ItemGroup>
 </Project>

@@ -66,6 +66,20 @@ public sealed class WindowSnapServiceTests
     }
 
     [Fact]
+    public void SnapWindowMovesRequestedWindowHandle()
+    {
+        var selectedWindow = WindowHandle.FromIntPtr(new IntPtr(456));
+        var windowManager = new FakeWindowManager();
+        var service = CreateService(windowManager);
+
+        var result = service.SnapWindow(selectedWindow, CreateCommand(BuiltinLayouts.RightHalfId));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(selectedWindow, windowManager.LastMoveHandle.GetValueOrDefault());
+        Assert.Equal(new RectInt(960, 0, 960, 1080), windowManager.LastMoveTarget.GetValueOrDefault());
+    }
+
+    [Fact]
     public void SnapActiveWindowDoesNotShowOverlayWhenPreviewIsDisabled()
     {
         var overlay = new FakeOverlayPreviewService();
@@ -135,6 +149,104 @@ public sealed class WindowSnapServiceTests
     }
 
     [Fact]
+    public void SnapWindowRestoresMinimizedWindowBeforeMove()
+    {
+        var windowManager = new FakeWindowManager
+        {
+            WindowInfoResult = Result<WindowInfo>.Success(CreateWindowInfo(isMinimized: true))
+        };
+        var service = CreateService(windowManager);
+
+        var result = service.SnapWindow(WindowHandle.FromIntPtr(new IntPtr(123)), CreateCommand(BuiltinLayouts.LeftHalfId));
+
+        Assert.True(result.IsSuccess);
+        Assert.True(windowManager.RestoreWindowCalled);
+        Assert.True(windowManager.MoveWindowCalled);
+    }
+
+    [Fact]
+    public void SnapWindowRestoresHiddenWindowBeforeMove()
+    {
+        var windowManager = new FakeWindowManager
+        {
+            WindowInfoResult = Result<WindowInfo>.Success(CreateWindowInfo(isVisible: false))
+        };
+        var service = CreateService(windowManager);
+
+        var result = service.SnapWindow(WindowHandle.FromIntPtr(new IntPtr(123)), CreateCommand(BuiltinLayouts.LeftHalfId));
+
+        Assert.True(result.IsSuccess);
+        Assert.True(windowManager.RestoreWindowCalled);
+        Assert.True(windowManager.MoveWindowCalled);
+    }
+
+    [Fact]
+    public void GetWindowBoundsReturnsCurrentWindowBounds()
+    {
+        var service = CreateService(new FakeWindowManager
+        {
+            WindowInfoResult = Result<WindowInfo>.Success(CreateWindowInfo(bounds: new RectInt(50, 60, 700, 500)))
+        });
+
+        var result = service.GetWindowBounds(WindowHandle.FromIntPtr(new IntPtr(123)));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new RectInt(50, 60, 700, 500), result.Value);
+    }
+
+    [Fact]
+    public void RestoreWindowBoundsMovesWindowToCapturedBounds()
+    {
+        var targetBounds = new RectInt(20, 30, 900, 700);
+        var windowManager = new FakeWindowManager();
+        var service = CreateService(windowManager);
+
+        var result = service.RestoreWindowBounds(WindowHandle.FromIntPtr(new IntPtr(123)), targetBounds);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(windowManager.MoveWindowCalled);
+        Assert.Equal(targetBounds, windowManager.LastMoveTarget.GetValueOrDefault());
+    }
+
+    [Fact]
+    public void RestoreWindowBoundsRestoresMinimizedStateAfterMoving()
+    {
+        var targetBounds = new RectInt(20, 30, 900, 700);
+        var windowManager = new FakeWindowManager();
+        var service = CreateService(windowManager);
+
+        var result = service.RestoreWindowBounds(
+            WindowHandle.FromIntPtr(new IntPtr(123)),
+            targetBounds,
+            wasVisible: true,
+            wasMinimized: true);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(windowManager.MoveWindowCalled);
+        Assert.True(windowManager.MinimizeWindowCalled);
+        Assert.False(windowManager.HideWindowCalled);
+    }
+
+    [Fact]
+    public void RestoreWindowBoundsRestoresHiddenStateAfterMoving()
+    {
+        var targetBounds = new RectInt(20, 30, 900, 700);
+        var windowManager = new FakeWindowManager();
+        var service = CreateService(windowManager);
+
+        var result = service.RestoreWindowBounds(
+            WindowHandle.FromIntPtr(new IntPtr(123)),
+            targetBounds,
+            wasVisible: false,
+            wasMinimized: false);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(windowManager.MoveWindowCalled);
+        Assert.True(windowManager.HideWindowCalled);
+        Assert.False(windowManager.MinimizeWindowCalled);
+    }
+
+    [Fact]
     public void SnapActiveWindowReturnsFriendlyFailureWhenMoveFails()
     {
         var windowManager = new FakeWindowManager
@@ -185,16 +297,20 @@ public sealed class WindowSnapServiceTests
         return new SnapCommand(layoutId, BuiltinLayouts.MainZoneId);
     }
 
-    private static WindowInfo CreateWindowInfo(bool isMaximized = false)
+    private static WindowInfo CreateWindowInfo(
+        bool isMaximized = false,
+        bool isMinimized = false,
+        bool isVisible = true,
+        RectInt? bounds = null)
     {
         return new WindowInfo(
             WindowHandle.FromIntPtr(new IntPtr(123)),
             string.Empty,
             "notepad",
             "Notepad",
-            new RectInt(10, 10, 800, 600),
-            true,
-            false,
+            bounds ?? new RectInt(10, 10, 800, 600),
+            isVisible,
+            isMinimized,
             isMaximized);
     }
 
@@ -204,19 +320,29 @@ public sealed class WindowSnapServiceTests
 
         public Result<WindowHandle> ActiveWindowResult { get; init; }
 
-        public Result<WindowInfo> WindowInfoResult { get; init; }
+        public Result<WindowInfo> WindowInfoResult { get; set; }
 
         public Result<bool> ManageableResult { get; init; } = Result<bool>.Success(true);
 
         public Result RestoreWindowResult { get; init; } = Result.Success();
 
+        public Result MinimizeWindowResult { get; init; } = Result.Success();
+
+        public Result HideWindowResult { get; init; } = Result.Success();
+
         public Result MoveWindowResult { get; init; } = Result.Success();
 
         public bool RestoreWindowCalled { get; private set; }
 
+        public bool MinimizeWindowCalled { get; private set; }
+
+        public bool HideWindowCalled { get; private set; }
+
         public bool MoveWindowCalled { get; private set; }
 
         public RectInt? LastMoveTarget { get; private set; }
+
+        public WindowHandle? LastMoveHandle { get; private set; }
 
         public FakeWindowManager()
         {
@@ -242,12 +368,53 @@ public sealed class WindowSnapServiceTests
         public Result RestoreWindow(WindowHandle handle)
         {
             RestoreWindowCalled = true;
+            if (WindowInfoResult.IsSuccess)
+            {
+                WindowInfoResult = Result<WindowInfo>.Success(WindowInfoResult.Value with
+                {
+                    IsVisible = true,
+                    IsMinimized = false,
+                    IsMaximized = false
+                });
+            }
+
             return RestoreWindowResult;
+        }
+
+        public Result MinimizeWindow(WindowHandle handle)
+        {
+            MinimizeWindowCalled = true;
+            if (WindowInfoResult.IsSuccess)
+            {
+                WindowInfoResult = Result<WindowInfo>.Success(WindowInfoResult.Value with
+                {
+                    IsMinimized = true,
+                    IsVisible = true
+                });
+            }
+
+            return MinimizeWindowResult;
+        }
+
+        public Result HideWindow(WindowHandle handle)
+        {
+            HideWindowCalled = true;
+            if (WindowInfoResult.IsSuccess)
+            {
+                WindowInfoResult = Result<WindowInfo>.Success(WindowInfoResult.Value with
+                {
+                    IsVisible = false,
+                    IsMinimized = false
+                });
+            }
+
+            return HideWindowResult;
         }
 
         public Result MoveWindow(WindowHandle handle, RectInt targetBounds)
         {
             MoveWindowCalled = true;
+            LastMoveHandle = handle;
             LastMoveTarget = targetBounds;
             return MoveWindowResult;
         }

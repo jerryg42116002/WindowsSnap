@@ -22,7 +22,7 @@ public partial class App : Application
         {
             Trace.TraceError("WindowSnapper startup failed: {0}", ex.Message);
             MessageBox.Show(
-                "WindowSnapper 启动失败，请稍后重试。",
+                $"WindowSnapper 启动失败，请稍后重试。{Environment.NewLine}{Environment.NewLine}诊断信息：{ex.Message}",
                 "WindowSnapper",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);

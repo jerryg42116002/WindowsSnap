@@ -48,12 +48,12 @@ public sealed record AppSettings
     /// <summary>
     /// Gets the default layout gap in pixels.
     /// </summary>
-    public int DefaultGap { get; init; } = 8;
+    public int DefaultGap { get; init; }
 
     /// <summary>
     /// Gets the default layout margin in pixels.
     /// </summary>
-    public int DefaultMargin { get; init; } = 8;
+    public int DefaultMargin { get; init; }
 
     /// <summary>
     /// Gets process names ignored by window management.

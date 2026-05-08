@@ -13,11 +13,15 @@ WindowSnapper.App
   -> WindowSnapper.Hotkeys
   -> WindowSnapper.Snap
   -> WindowSnapper.Tray
+  -> WindowSnapper.Workspaces
 
 WindowSnapper.Snap
   -> WindowSnapper.Core
   -> WindowSnapper.Layouts
   -> WindowSnapper.Hotkeys
+
+WindowSnapper.Workspaces
+  -> WindowSnapper.Core
 
 WindowSnapper.Layouts
   -> WindowSnapper.Core
@@ -45,6 +49,7 @@ Storage -> WPF / Win32
 Hotkeys -> WPF / Win32
 Tray -> Win32 P/Invoke / 布局计算 / 配置解析
 App code-behind -> NativeMethods
+Workspaces -> WPF / Win32 / Storage 实现细节
 ```
 
 ## 模块职责
@@ -63,6 +68,7 @@ Core 只包含通用模型、接口和结果类型：
 - `IWindowManager`
 - `IMonitorManager`
 - `IClock`
+- 工作区快照模型，例如 `WorkspaceSnapshot`、`WorkspaceWindowSnapshot`、`RelativeRect`
 
 Core 不引用 WPF、Win32、P/Invoke、文件系统或配置读写。
 
@@ -87,11 +93,12 @@ Storage 负责本地 JSON 配置和用户布局文件：
 - `AppSettings`
 - `SettingsStorage`
 - `LayoutStorage`
+- `WorkspaceSnapshotStorage`
 - `ConfigMigration`
 - `DefaultSettingsFactory`
 - `StoragePaths`
 
-Storage 会创建默认配置、迁移 schema、原子写入 JSON，并在配置损坏时备份为 `.bak`。用户布局读取后交给 `LayoutValidator` 校验。
+Storage 会创建默认配置、迁移 schema、原子写入 JSON，并在配置损坏时备份为 `.bak`。用户布局读取后交给 `LayoutValidator` 校验。工作区快照保存在本地 JSON 文件中，不保存完整窗口标题、浏览器 URL、用户文件路径或命令行参数。
 
 ### WindowSnapper.Win32
 
@@ -106,6 +113,8 @@ Win32 是唯一包含 P/Invoke 的项目：
 - `Win32OverlayWindowStyleService`
 
 该层把 Win32 结构和错误转换为 Core 类型与 `Result`，避免 UI 层处理原生结构体或直接调用 Windows API。
+
+当前窗口移动还包含 DWM 可见边框补偿：`WindowSnapper.Win32` 使用 `GetWindowRect` 和 `DwmGetWindowAttribute` 反推传给 `SetWindowPos` 的外框坐标，让上层仍以用户可见区域作为目标矩形。该逻辑不能放入 Layouts 或 App。
 
 ### WindowSnapper.Hotkeys
 
@@ -130,8 +139,21 @@ Snap 是当前 MVP 的应用服务层，负责串联窗口移动闭环：
 - `IWindowSnapLogger`
 - `IOverlayPreviewService`
 - `OverlayPreviewOptions`
+- `RepeatHotkeyCycleService`
 
-Snap 不依赖 WPF 或 Win32 实现，只依赖 Core 接口和 Layouts。App 在启动时注入 Win32 实现和 WPF Overlay 实现。
+Snap 不依赖 WPF 或 Win32 实现，只依赖 Core 接口和 Layouts。App 在启动时注入 Win32 实现和 WPF Overlay 实现。窗口选择器的“还原”也通过 Snap 服务恢复移动前位置和状态；如果窗口移动前是最小化或隐藏状态，还原后会调用 Core 接口恢复对应状态。
+
+### WindowSnapper.Workspaces
+
+Workspaces 负责工作区快照的业务流程：
+
+- 枚举当前可管理窗口。
+- 记录进程名、窗口类名、显示器名、相对位置和窗口状态。
+- 根据快照匹配仍在运行的窗口。
+- 将相对位置转换回当前显示器 `WorkArea` 中的绝对位置。
+- 恢复最近或指定快照。
+
+Workspaces 只依赖 Core 抽象，不直接读取文件系统，不直接调用 Win32。持久化由 Storage 中的 `WorkspaceSnapshotStorage` 提供，真实窗口枚举和移动由 App 注入 Win32 实现。
 
 ### WindowSnapper.Tray
 
@@ -140,6 +162,8 @@ Tray 负责系统托盘入口和菜单：
 - 打开主窗口
 - 打开设置窗口
 - 暂停/恢复快捷键
+- 保存工作区快照
+- 恢复最近工作区快照
 - 退出程序
 - 显示可用布局和 zone 菜单
 
@@ -154,7 +178,7 @@ App 是 WPF 主程序，负责：
 - 加载设置和自定义布局。
 - 注册默认快捷键。
 - 创建托盘图标。
-- 主窗口、设置窗口和 Overlay Preview。
+- 主窗口、设置窗口、窗口选择器、布局编辑器和 Overlay Preview。
 - 把 UI 事件转发给应用服务。
 
 WPF code-behind 保持轻量，不直接调用 `NativeMethods`。

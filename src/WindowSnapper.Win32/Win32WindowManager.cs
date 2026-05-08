@@ -96,6 +96,30 @@ public sealed class Win32WindowManager : IWindowManager
     }
 
     /// <inheritdoc />
+    public Result MinimizeWindow(WindowHandle handle)
+    {
+        if (handle.IsNone)
+        {
+            return Result.Failure(ResultErrorCode.InvalidArgument, "Window handle is empty.");
+        }
+
+        NativeMethods.ShowWindow(handle.ToIntPtr(), NativeMethods.SwMinimize);
+        return Result.Success();
+    }
+
+    /// <inheritdoc />
+    public Result HideWindow(WindowHandle handle)
+    {
+        if (handle.IsNone)
+        {
+            return Result.Failure(ResultErrorCode.InvalidArgument, "Window handle is empty.");
+        }
+
+        NativeMethods.ShowWindow(handle.ToIntPtr(), NativeMethods.SwHide);
+        return Result.Success();
+    }
+
+    /// <inheritdoc />
     public Result MoveWindow(WindowHandle handle, RectInt targetBounds)
     {
         if (handle.IsNone)
@@ -145,13 +169,15 @@ public sealed class Win32WindowManager : IWindowManager
             }
         }
 
+        var nativeHandle = handle.ToIntPtr();
+        var moveBounds = CalculateOuterBoundsForVisibleTarget(nativeHandle, targetBounds);
         var succeeded = NativeMethods.SetWindowPos(
-            handle.ToIntPtr(),
+            nativeHandle,
             IntPtr.Zero,
-            targetBounds.X,
-            targetBounds.Y,
-            targetBounds.Width,
-            targetBounds.Height,
+            moveBounds.X,
+            moveBounds.Y,
+            moveBounds.Width,
+            moveBounds.Height,
             NativeMethods.SwpNoZOrder | NativeMethods.SwpNoActivate);
 
         return succeeded
@@ -159,7 +185,48 @@ public sealed class Win32WindowManager : IWindowManager
             : Win32ErrorMapper.ToFailure(Marshal.GetLastPInvokeError(), nameof(NativeMethods.SetWindowPos));
     }
 
+    internal static RectInt CalculateOuterBoundsForVisibleTarget(
+        RectInt outerBounds,
+        RectInt visibleBounds,
+        RectInt targetVisibleBounds)
+    {
+        var leftFrame = visibleBounds.X - outerBounds.X;
+        var topFrame = visibleBounds.Y - outerBounds.Y;
+        var rightFrame = outerBounds.Right - visibleBounds.Right;
+        var bottomFrame = outerBounds.Bottom - visibleBounds.Bottom;
+
+        return new RectInt(
+            targetVisibleBounds.X - leftFrame,
+            targetVisibleBounds.Y - topFrame,
+            targetVisibleBounds.Width + leftFrame + rightFrame,
+            targetVisibleBounds.Height + topFrame + bottomFrame);
+    }
+
+    private static RectInt CalculateOuterBoundsForVisibleTarget(IntPtr window, RectInt targetVisibleBounds)
+    {
+        if (!TryGetOuterWindowBounds(window, out var outerBounds) ||
+            !TryGetExtendedFrameBounds(window, out var visibleBounds))
+        {
+            return targetVisibleBounds;
+        }
+
+        var moveBounds = CalculateOuterBoundsForVisibleTarget(outerBounds, visibleBounds, targetVisibleBounds);
+        return moveBounds.Width <= 0 || moveBounds.Height <= 0
+            ? targetVisibleBounds
+            : moveBounds;
+    }
+
     private static bool TryGetWindowBounds(IntPtr window, out RectInt bounds)
+    {
+        if (TryGetExtendedFrameBounds(window, out bounds))
+        {
+            return true;
+        }
+
+        return TryGetOuterWindowBounds(window, out bounds);
+    }
+
+    private static bool TryGetExtendedFrameBounds(IntPtr window, out RectInt bounds)
     {
         var dwmResult = NativeMethods.DwmGetWindowAttribute(
             window,
@@ -173,6 +240,12 @@ public sealed class Win32WindowManager : IWindowManager
             return true;
         }
 
+        bounds = default;
+        return false;
+    }
+
+    private static bool TryGetOuterWindowBounds(IntPtr window, out RectInt bounds)
+    {
         if (NativeMethods.GetWindowRect(window, out var rect))
         {
             bounds = Win32RectMapper.ToRectInt(rect);

@@ -8,6 +8,8 @@ WindowSnapper 使用 JSON 文件定义用户自定义布局。布局文件放在
 
 应用启动时会读取该目录下的 `*.json` 文件。合法布局会合并到布局注册表中；非法布局会跳过并记录文件名级别的错误。用户布局不能覆盖内置布局 id。
 
+当前应用也提供 MVP 可视化布局编辑器。编辑器保存时仍生成同一套 JSON 格式，因此手写布局和编辑器生成的布局使用同一条加载、校验和计算路径。
+
 ## JSON 结构
 
 ```json
@@ -15,8 +17,8 @@ WindowSnapper 使用 JSON 文件定义用户自定义布局。布局文件放在
   "id": "dev-layout",
   "name": "开发布局",
   "version": 1,
-  "gap": 8,
-  "margin": 8,
+  "gap": 0,
+  "margin": 0,
   "zones": [
     {
       "id": "code",
@@ -41,8 +43,8 @@ JSON 序列化使用 camelCase 字段名，读取时大小写不敏感。
 | `id` | string | 布局稳定 id。用户布局 id 不能与内置布局重复。 |
 | `name` | string | 用于托盘菜单显示的布局名称。 |
 | `version` | number | 布局 schema 版本。当前布局模型使用 `1`。 |
-| `gap` | number | 区域内部边界间距，单位为像素。必须大于等于 `0`。 |
-| `margin` | number | 显示器工作区边缘边距，单位为像素。必须大于等于 `0`。 |
+| `gap` | number | 区域内部边界间距，单位为像素。必须大于等于 `0`。当前默认值为 `0`，即默认密铺。 |
+| `margin` | number | 显示器工作区边缘边距，单位为像素。必须大于等于 `0`。当前默认值为 `0`，即默认贴合 `WorkArea`。 |
 | `zones` | array | 布局区域列表，至少包含一个区域。 |
 
 ### ZoneDefinition
@@ -67,8 +69,8 @@ JSON 序列化使用 camelCase 字段名，读取时大小写不敏感。
   "id": "dev-three-zone",
   "name": "开发三栏",
   "version": 1,
-  "gap": 8,
-  "margin": 8,
+  "gap": 0,
+  "margin": 0,
   "zones": [
     {
       "id": "editor",
@@ -94,6 +96,26 @@ JSON 序列化使用 camelCase 字段名，读取时大小写不敏感。
       "width": 0.4,
       "height": 0.5
     }
+  ]
+}
+```
+
+六分屏布局示例：
+
+```json
+{
+  "id": "six-grid",
+  "name": "六分屏",
+  "version": 1,
+  "gap": 0,
+  "margin": 0,
+  "zones": [
+    { "id": "top-left", "name": "左上", "x": 0, "y": 0, "width": 0.333333, "height": 0.5 },
+    { "id": "top-middle", "name": "中上", "x": 0.333333, "y": 0, "width": 0.333334, "height": 0.5 },
+    { "id": "top-right", "name": "右上", "x": 0.666667, "y": 0, "width": 0.333333, "height": 0.5 },
+    { "id": "bottom-left", "name": "左下", "x": 0, "y": 0.5, "width": 0.333333, "height": 0.5 },
+    { "id": "bottom-middle", "name": "中下", "x": 0.333333, "y": 0.5, "width": 0.333334, "height": 0.5 },
+    { "id": "bottom-right", "name": "右下", "x": 0.666667, "y": 0.5, "width": 0.333333, "height": 0.5 }
   ]
 }
 ```
@@ -128,6 +150,39 @@ JSON 序列化使用 camelCase 字段名，读取时大小写不敏感。
 - `margin` 应用于工作区外边缘。
 - `gap` 应用于非边缘的内部区域边界。
 - 计算后目标宽高必须大于 `0`。
+- LayoutEngine 不限制区域数量。六分屏、八分屏或更多区域可以通过 JSON 或布局编辑器创建，只要每个区域通过校验。
+- 窗口选择器中的区域下拉列表当前按区域 `name` 排序，再按 `id` 排序。多选窗口从选中的起始区域开始，依次放入排序后的后续区域。
+
+## 视觉贴边说明
+
+当 `gap=0` 且 `margin=0` 时，布局计算会返回密铺目标矩形。但 Windows 现代窗口通常有不可见 resize border，直接把外框传给 `SetWindowPos` 可能仍看到空隙。
+
+当前实现把 DWM 可见边框补偿放在 `WindowSnapper.Win32`：
+
+- Layouts 仍只计算目标可见区域。
+- Win32 层读取窗口外框和 DWM 扩展边框。
+- Win32 层反推出应传给 `SetWindowPos` 的外框坐标。
+
+因此视觉贴边属于窗口移动封装问题，不属于布局 JSON schema。
+
+## 布局编辑器当前行为
+
+MVP 布局编辑器支持：
+
+- 新建布局 id 和名称。
+- 设置 `gap` 和 `margin`。
+- 新增多个区域。
+- 拖拽移动区域。
+- 拖拽右下角缩放区域。
+- 编辑区域 id 和名称。
+- 保存为 `%APPDATA%/WindowSnapper/layouts/{layoutId}.json`。
+
+当前编辑器限制：
+
+- 不支持打开已有布局继续编辑。
+- 不支持撤销/重做。
+- 不支持吸附分割线。
+- 不阻止区域重叠；保存时只执行 schema 校验。
 
 ## 内置布局 id
 

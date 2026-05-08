@@ -29,6 +29,16 @@ public interface IWindowManager
     Result RestoreWindow(WindowHandle handle);
 
     /// <summary>
+    /// Minimizes the specified window.
+    /// </summary>
+    Result MinimizeWindow(WindowHandle handle);
+
+    /// <summary>
+    /// Hides the specified window.
+    /// </summary>
+    Result HideWindow(WindowHandle handle);
+
+    /// <summary>
     /// Moves and resizes the specified window to the target bounds.
     /// </summary>
     Result MoveWindow(WindowHandle handle, RectInt targetBounds);

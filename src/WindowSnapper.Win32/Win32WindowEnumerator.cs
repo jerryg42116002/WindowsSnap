@@ -11,14 +11,19 @@ public sealed class Win32WindowEnumerator : IWindowEnumerator
 {
     private readonly Win32WindowManager windowManager;
     private readonly Win32MonitorManager monitorManager;
+    private readonly bool includeMinimizedWindows;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Win32WindowEnumerator"/> class.
     /// </summary>
-    public Win32WindowEnumerator(Win32WindowManager windowManager, Win32MonitorManager monitorManager)
+    public Win32WindowEnumerator(
+        Win32WindowManager windowManager,
+        Win32MonitorManager monitorManager,
+        bool includeMinimizedWindows = false)
     {
         this.windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
         this.monitorManager = monitorManager ?? throw new ArgumentNullException(nameof(monitorManager));
+        this.includeMinimizedWindows = includeMinimizedWindows;
     }
 
     /// <inheritdoc />
@@ -35,14 +40,18 @@ public sealed class Win32WindowEnumerator : IWindowEnumerator
                     return true;
                 }
 
-                var manageable = windowManager.IsWindowManageable(windowInfo.Value);
+                var filterInfo = includeMinimizedWindows && windowInfo.Value.IsMinimized
+                    ? windowInfo.Value with { IsMinimized = false }
+                    : windowInfo.Value;
+                var manageable = windowManager.IsWindowManageable(filterInfo);
                 if (manageable.IsFailure || !manageable.Value)
                 {
                     return true;
                 }
 
                 var monitor = monitorManager.GetMonitorForWindow(handle);
-                if (monitor.IsSuccess &&
+                if (!windowInfo.Value.IsMinimized &&
+                    monitor.IsSuccess &&
                     WindowFilter.CoversMonitorBounds(windowInfo.Value, monitor.Value))
                 {
                     return true;

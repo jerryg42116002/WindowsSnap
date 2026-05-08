@@ -51,6 +51,13 @@ public sealed class NotifyIconTrayIcon : ITrayIcon
             Text = "WindowSnapper",
             Visible = false
         };
+        notifyIcon.MouseClick += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                RaiseCommand(TrayMenuCommand.OpenMainWindow);
+            }
+        };
         notifyIcon.DoubleClick += (_, _) => RaiseCommand(TrayMenuCommand.OpenMainWindow);
     }
 

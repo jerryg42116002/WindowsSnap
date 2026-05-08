@@ -17,8 +17,8 @@ internal sealed class LayoutEditorViewModel : ViewModelBase
     private readonly LayoutValidator validator = new();
     private string layoutId;
     private string layoutName;
-    private int gap = 8;
-    private int margin = 8;
+    private int gap;
+    private int margin;
     private EditableZoneViewModel? selectedZone;
     private string errorMessage = string.Empty;
     private string statusMessage = "创建或拖拽区域后保存为自定义布局。";

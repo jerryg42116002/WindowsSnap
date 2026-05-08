@@ -8,7 +8,7 @@ public sealed class ConfigMigration
     /// <summary>
     /// Gets the current settings schema version.
     /// </summary>
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     private readonly DefaultSettingsFactory defaultSettingsFactory;
 
@@ -39,14 +39,21 @@ public sealed class ConfigMigration
             return defaults;
         }
 
+        var defaultGap = settings.Version < 3 && settings.DefaultGap == 8
+            ? defaults.DefaultGap
+            : settings.DefaultGap;
+        var defaultMargin = settings.Version < 3 && settings.DefaultMargin == 8
+            ? defaults.DefaultMargin
+            : settings.DefaultMargin;
+
         return settings with
         {
             Version = CurrentVersion,
             Theme = UseDefaultWhenBlank(settings.Theme, defaults.Theme),
             Language = UseDefaultWhenBlank(settings.Language, defaults.Language),
             OverlayOpacity = settings.OverlayOpacity is <= 0 or > 1 ? defaults.OverlayOpacity : settings.OverlayOpacity,
-            DefaultGap = settings.DefaultGap < 0 ? defaults.DefaultGap : settings.DefaultGap,
-            DefaultMargin = settings.DefaultMargin < 0 ? defaults.DefaultMargin : settings.DefaultMargin,
+            DefaultGap = defaultGap < 0 ? defaults.DefaultGap : defaultGap,
+            DefaultMargin = defaultMargin < 0 ? defaults.DefaultMargin : defaultMargin,
             IgnoredProcesses = UseDefaultWhenEmpty(settings.IgnoredProcesses, defaults.IgnoredProcesses),
             IgnoredWindowClasses = MergeRequiredDefaults(settings.IgnoredWindowClasses, defaults.IgnoredWindowClasses)
         };

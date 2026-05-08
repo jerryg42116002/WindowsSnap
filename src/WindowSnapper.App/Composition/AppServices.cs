@@ -30,6 +30,7 @@ internal sealed class AppServices : IDisposable
         overlayPreviewService = new OverlayPreviewService(new Win32OverlayWindowStyleService());
         this.layoutRegistry = layoutRegistry;
         WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
+        WindowEnumerator = CreateWindowEnumerator(settings, includeMinimizedWindows: true);
         WorkspaceSnapshotService = CreateWorkspaceSnapshotService(settings);
 
         hotkeyRegistrar = new WpfHotkeyRegistrar(MainWindow, new Win32HotkeyRegistrar());
@@ -41,6 +42,8 @@ internal sealed class AppServices : IDisposable
     public HotkeyManager HotkeyManager { get; }
 
     public WindowSnapService WindowSnapService { get; private set; }
+
+    public IWindowEnumerator WindowEnumerator { get; private set; }
 
     public WorkspaceSnapshotService WorkspaceSnapshotService { get; private set; }
 
@@ -56,6 +59,7 @@ internal sealed class AppServices : IDisposable
         ArgumentNullException.ThrowIfNull(settings);
 
         WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
+        WindowEnumerator = CreateWindowEnumerator(settings, includeMinimizedWindows: true);
         WorkspaceSnapshotService = CreateWorkspaceSnapshotService(settings);
     }
 
@@ -66,6 +70,7 @@ internal sealed class AppServices : IDisposable
 
         this.layoutRegistry = layoutRegistry;
         WindowSnapService = CreateWindowSnapService(settings, layoutRegistry);
+        WindowEnumerator = CreateWindowEnumerator(settings, includeMinimizedWindows: true);
         WorkspaceSnapshotService = CreateWorkspaceSnapshotService(settings);
     }
 
@@ -102,6 +107,20 @@ internal sealed class AppServices : IDisposable
             layoutRegistry,
             overlayPreviewService,
             new OverlayPreviewOptions(settings.ShowOverlayPreview, settings.OverlayOpacity));
+    }
+
+    private static IWindowEnumerator CreateWindowEnumerator(AppSettings settings, bool includeMinimizedWindows)
+    {
+        var monitorManager = new Win32MonitorManager();
+        using var currentProcess = Process.GetCurrentProcess();
+        var windowFilter = new WindowFilter(
+            currentProcess.ProcessName,
+            Environment.ProcessId,
+            settings.IgnoredWindowClasses,
+            settings.IgnoredProcesses);
+        var windowManager = new Win32WindowManager(windowFilter, monitorManager);
+
+        return new Win32WindowEnumerator(windowManager, monitorManager, includeMinimizedWindows);
     }
 
     private static WorkspaceSnapshotService CreateWorkspaceSnapshotService(AppSettings settings)

@@ -5,6 +5,8 @@ namespace WindowSnapper.Win32;
 
 internal static class NativeMethods
 {
+    public const int SwHide = 0;
+    public const int SwMinimize = 6;
     public const int SwRestore = 9;
     public const int MonitorDefaultToNearest = 0x00000002;
     public const int SwpNoZOrder = 0x0004;

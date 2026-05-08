@@ -171,6 +171,16 @@ public sealed class WorkspaceSnapshotService
                 continue;
             }
 
+            if (windowSnapshot.WindowState == WorkspaceWindowState.Minimized)
+            {
+                var minimize = windowManager.MinimizeWindow(window.Handle);
+                if (minimize.IsFailure)
+                {
+                    failed++;
+                    continue;
+                }
+            }
+
             restored++;
         }
 

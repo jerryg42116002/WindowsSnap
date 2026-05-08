@@ -75,6 +75,12 @@ public sealed class SettingsStorage
                 ResultErrorCode.PlatformCallFailed,
                 $"Could not read settings file: {ex.Message}");
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Result<AppSettings>.Failure(
+                ResultErrorCode.PermissionDenied,
+                $"Could not access settings file: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -98,21 +104,42 @@ public sealed class SettingsStorage
                 ResultErrorCode.PlatformCallFailed,
                 $"Could not write settings file: {ex.Message}");
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Result.Failure(
+                ResultErrorCode.PermissionDenied,
+                $"Could not write settings file: {ex.Message}");
+        }
     }
 
     private async Task<Result<AppSettings>> BackupCorruptConfigAndRestoreDefaultAsync(CancellationToken cancellationToken)
     {
-        var backupPath = $"{paths.ConfigFilePath}.bak";
-        Directory.CreateDirectory(Path.GetDirectoryName(paths.ConfigFilePath)!);
-        File.Copy(paths.ConfigFilePath, backupPath, overwrite: true);
-
-        var defaults = defaultSettingsFactory.Create();
-        var saveResult = await SaveAsync(defaults, cancellationToken).ConfigureAwait(false);
-        if (saveResult.IsFailure)
+        try
         {
-            return Result<AppSettings>.Failure(saveResult.ErrorCode, saveResult.ErrorMessage);
-        }
+            var backupPath = $"{paths.ConfigFilePath}.bak";
+            Directory.CreateDirectory(Path.GetDirectoryName(paths.ConfigFilePath)!);
+            File.Copy(paths.ConfigFilePath, backupPath, overwrite: true);
 
-        return Result<AppSettings>.Success(defaults);
+            var defaults = defaultSettingsFactory.Create();
+            var saveResult = await SaveAsync(defaults, cancellationToken).ConfigureAwait(false);
+            if (saveResult.IsFailure)
+            {
+                return Result<AppSettings>.Failure(saveResult.ErrorCode, saveResult.ErrorMessage);
+            }
+
+            return Result<AppSettings>.Success(defaults);
+        }
+        catch (IOException ex)
+        {
+            return Result<AppSettings>.Failure(
+                ResultErrorCode.PlatformCallFailed,
+                $"Could not recover settings file: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Result<AppSettings>.Failure(
+                ResultErrorCode.PermissionDenied,
+                $"Could not recover settings file: {ex.Message}");
+        }
     }
 }

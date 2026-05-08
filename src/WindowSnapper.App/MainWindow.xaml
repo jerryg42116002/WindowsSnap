@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="WindowSnapper"
         Height="320"
-        Width="520"
+        Width="640"
         MinHeight="240"
-        MinWidth="480">
+        MinWidth="560">
   <Grid Margin="20">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -36,6 +36,11 @@
               Padding="12,6"
               Content="{Binding ToggleHotkeysText}"
               Command="{Binding ToggleHotkeysCommand}" />
+      <Button MinWidth="96"
+              Margin="0,0,8,0"
+              Padding="12,6"
+              Content="窗口选择器"
+              Command="{Binding OpenWindowSelectorCommand}" />
       <Button MinWidth="96"
               Margin="0,0,8,0"
               Padding="12,6"

@@ -5,6 +5,7 @@ using WindowSnapper.App.Commands;
 using WindowSnapper.App.Composition;
 using WindowSnapper.App.ViewModels;
 using WindowSnapper.Core.Results;
+using WindowSnapper.Core.Windows;
 using WindowSnapper.Hotkeys;
 using WindowSnapper.Layouts;
 using WindowSnapper.Snap;
@@ -27,8 +28,10 @@ internal sealed class AppController : IDisposable
     private MainWindow? mainWindow;
     private SettingsWindow? settingsWindow;
     private LayoutEditorWindow? layoutEditorWindow;
+    private WindowSelectorWindow? windowSelectorWindow;
     private MainWindowViewModel? mainWindowViewModel;
     private SettingsViewModel? settingsViewModel;
+    private WindowSelectorViewModel? windowSelectorViewModel;
     private AppServices? services;
     private ITrayIcon? trayIcon;
     private bool disposed;
@@ -141,6 +144,7 @@ internal sealed class AppController : IDisposable
         return new MainWindowViewModel
         {
             OpenSettingsCommand = new RelayCommand(OpenSettingsWindow),
+            OpenWindowSelectorCommand = new RelayCommand(OpenWindowSelectorWindow),
             OpenLayoutEditorCommand = new RelayCommand(OpenLayoutEditorWindow),
             ToggleHotkeysCommand = new AsyncRelayCommand(ToggleHotkeysPausedAsync),
             ExitCommand = new RelayCommand(ExitApplication)
@@ -242,6 +246,36 @@ internal sealed class AppController : IDisposable
         layoutEditorWindow.Closed += (_, _) => layoutEditorWindow = null;
         layoutEditorWindow.Show();
         layoutEditorWindow.Activate();
+    }
+
+    private void OpenWindowSelectorWindow()
+    {
+        if (windowSelectorWindow is not null)
+        {
+            windowSelectorWindow.Activate();
+            return;
+        }
+
+        if (services is null)
+        {
+            ShowWarning("窗口选择器暂不可用，请稍后重试。");
+            return;
+        }
+
+        windowSelectorViewModel = new WindowSelectorViewModel(
+            services.WindowEnumerator,
+            layoutRegistry,
+            SnapSelectedWindow,
+            GetWindowInfo,
+            RestoreWindowTarget);
+        windowSelectorWindow = new WindowSelectorWindow(windowSelectorViewModel);
+        windowSelectorWindow.Closed += (_, _) =>
+        {
+            windowSelectorWindow = null;
+            windowSelectorViewModel = null;
+        };
+        windowSelectorWindow.Show();
+        windowSelectorWindow.Activate();
     }
 
     private async Task ToggleHotkeysPausedAsync()
@@ -377,6 +411,28 @@ internal sealed class AppController : IDisposable
         }
     }
 
+    private Result SnapSelectedWindow(WindowHandle window, SnapCommand command)
+    {
+        return services?.WindowSnapService.SnapWindow(window, command)
+            ?? Result.Failure(ResultErrorCode.NotFound, "窗口选择器暂不可用，请稍后重试。");
+    }
+
+    private Result<WindowInfo> GetWindowInfo(WindowHandle window)
+    {
+        return services?.WindowSnapService.GetWindowInfo(window)
+            ?? Result<WindowInfo>.Failure(ResultErrorCode.NotFound, "窗口选择器暂不可用，请稍后重试。");
+    }
+
+    private Result RestoreWindowTarget(WindowRestoreTarget target)
+    {
+        return services?.WindowSnapService.RestoreWindowBounds(
+                target.Handle,
+                target.Bounds,
+                target.WasVisible,
+                target.WasMinimized)
+            ?? Result.Failure(ResultErrorCode.NotFound, "窗口选择器暂不可用，请稍后重试。");
+    }
+
     private async Task SaveWorkspaceSnapshotAsync()
     {
         if (services is null)
@@ -436,6 +492,7 @@ internal sealed class AppController : IDisposable
 
         layoutRegistry = await LoadLayoutRegistryAsync();
         services?.ApplyLayouts(layoutRegistry, settings);
+        windowSelectorViewModel?.UpdateLayouts(layoutRegistry.Layouts);
         UpdateShellState();
         return Result.Success();
     }

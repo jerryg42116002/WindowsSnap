@@ -115,6 +115,24 @@ Codex 每次执行任务时必须遵守：
 13. 不提交临时调试代码。
 14. 不提交本地绝对路径。
 15. 不修改与任务无关的大量文件。
+16. 不分析、读取或总结 `bin/`、`obj/`、`TestResults/` 等构建/测试输出目录中的文件，除非用户明确要求诊断这些产物。
+
+Codex 搜索代码时应默认排除构建产物，例如：
+
+```bash
+rg "pattern" src tests docs
+```
+
+不要对以下目录做全量搜索或阅读：
+
+```text
+bin/
+obj/
+out/
+publish/
+TestResults/
+coverage/
+```
 
 ---
 
